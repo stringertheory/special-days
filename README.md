@@ -1,5 +1,7 @@
 # special-days
 
+[![tests](https://github.com/stringertheory/special-days/actions/workflows/ci.yml/badge.svg)](https://github.com/stringertheory/special-days/actions/workflows/ci.yml)
+
 Lookup dates for events that cause unusual attendance patterns at venues:
 Super Bowl Sunday, Oscars night, World Series Game 7, NCAA championship,
 etc. Data is sourced from [Wikidata](https://www.wikidata.org), so it

@@ -7,7 +7,7 @@ name = "special-days"
 version = "0.2.0"
 description = "Lookup dates for events that cause unusual attendance patterns (Super Bowl, Oscars, World Series, ...) using Wikidata as the source of truth."
 readme = "README.md"
-requires-python = ">=3.9"
+requires-python = ">=3.10"
 license = { text = "MIT" }
 authors = [{ name = "Mike Stringer", email = "mike.stringer.internet@gmail.com" }]
 keywords = ["super bowl", "events", "wikidata", "calendar", "attendance"]
@@ -17,6 +17,11 @@ classifiers = [
     "License :: OSI Approved :: MIT License",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
     "Topic :: Office/Business :: Scheduling",
 ]
 # Zero runtime dependencies: only the standard library. Anything we add
@@ -38,7 +43,7 @@ special_days = ["data/*.json", "py.typed"]
 
 [tool.ruff]
 line-length = 80
-target-version = "py39"
+target-version = "py310"
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B"]
