@@ -1,0 +1,598 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>How special-days works — developer guide</title>
+<style>
+  :root { color-scheme: light dark; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+                 Helvetica, Arial, sans-serif;
+    line-height: 1.55;
+    max-width: 44rem;
+    margin: 0 auto;
+    padding: 1rem;
+    color: #222;
+    background: #fff;
+  }
+  h1, h2, h3 { line-height: 1.2; }
+  h1 { font-size: 1.7rem; margin-top: 0; }
+  h2 { font-size: 1.25rem; margin-top: 2rem; border-bottom: 1px solid #ddd;
+       padding-bottom: 0.2rem; }
+  h3 { font-size: 1.05rem; margin-top: 1.5rem; }
+  p, li { word-wrap: break-word; }
+  code, pre, kbd, samp {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  }
+  pre {
+    background: #f5f5f5;
+    padding: 0.75rem 0.9rem;
+    overflow-x: auto;
+    border-radius: 4px;
+    font-size: 0.88rem;
+  }
+  code { background: #f0f0f0; padding: 0.08em 0.3em; border-radius: 3px;
+         font-size: 0.9em; }
+  pre code { background: none; padding: 0; font-size: inherit; }
+  a { color: #0366d6; }
+  a:focus, a:hover { text-decoration: underline; }
+  table { border-collapse: collapse; width: 100%; font-size: 0.95rem;
+          display: block; overflow-x: auto; }
+  th, td { text-align: left; padding: 0.4rem 0.6rem;
+           border-bottom: 1px solid #ddd; vertical-align: top; }
+  th { background: #f7f7f7; }
+  blockquote { border-left: 3px solid #ccc; margin: 1rem 0; padding: 0 1rem;
+               color: #555; }
+  hr { border: 0; border-top: 1px solid #ddd; margin: 2rem 0; }
+  nav.toc ol { padding-left: 1.2rem; }
+  nav.toc li { margin: 0.15rem 0; }
+  @media (prefers-color-scheme: dark) {
+    body { background: #0f0f10; color: #ddd; }
+    pre { background: #1c1c1e; }
+    code { background: #1c1c1e; }
+    a { color: #58a6ff; }
+    h2 { border-bottom-color: #2c2c2e; }
+    th { background: #1c1c1e; }
+    th, td { border-bottom-color: #2c2c2e; }
+    blockquote { color: #aaa; border-left-color: #444; }
+    hr { border-top-color: #2c2c2e; }
+  }
+</style>
+</head>
+<body>
+
+<h1>How <code>special-days</code> works</h1>
+<p>Developer reference for the lookup pipeline, on-disk formats, network
+policy, and the Wikidata query. Read this before changing the data layer
+or adding a new event type.</p>
+
+<nav class="toc" aria-label="Table of contents">
+  <strong>Contents</strong>
+  <ol>
+    <li><a href="#scope">What this package is (and isn't)</a></li>
+    <li><a href="#layout">Module layout</a></li>
+    <li><a href="#api">Public API surface</a></li>
+    <li><a href="#class-api">Date-keyed class API (<code>holidays</code>-compatible)</a></li>
+    <li><a href="#tiers">The three-tier lookup</a></li>
+    <li><a href="#lifecycle">Lifecycle of a <code>date(year)</code> call</a></li>
+    <li><a href="#snapshot">The shipped snapshot</a></li>
+    <li><a href="#cache">The on-disk cache</a></li>
+    <li><a href="#sparql">The Wikidata SPARQL query</a></li>
+    <li><a href="#network">Network policy and failure modes</a></li>
+    <li><a href="#maintenance">Maintenance: regenerating the snapshot</a></li>
+    <li><a href="#extending">Extending: adding a new event type</a></li>
+    <li><a href="#testing">Testing model</a></li>
+  </ol>
+</nav>
+
+<h2 id="scope">What this package is (and isn't)</h2>
+<p>Given a year, return the date on which a calendar-disrupting event
+occurred (or will occur). The first supported event is the NFL Super Bowl.
+The package is intentionally tiny:</p>
+<ul>
+  <li><strong>Zero runtime dependencies.</strong> Only the Python standard
+    library. <code>urllib</code> handles HTTP; <code>json</code> handles
+    SPARQL results. Anything added to <code>[project] dependencies</code>
+    in <code>pyproject.toml</code> is a long-term maintenance promise.</li>
+  <li><strong>Offline-first.</strong> A snapshot of all known dates ships
+    inside the wheel. Lookups for known years never touch the network.</li>
+  <li><strong>Self-healing for future years.</strong> Asking for an unknown
+    year transparently refreshes from Wikidata and caches the result.</li>
+</ul>
+<p>It is <em>not</em> a general calendar/holidays library. The scope is
+deliberately narrow: events that cause unusual venue attendance patterns,
+where the official date is announced once and rarely changes.</p>
+
+<h2 id="layout">Module layout</h2>
+<pre><code>src/special_days/
+├── __init__.py          # re-exports, SpecialDays, EVENT_REGISTRY
+├── super_bowl.py        # functional API + SuperBowl class
+├── _event.py            # _Event abstract base for event classes
+├── _lazy.py             # LazyDateMap + union (lazy view composition)
+├── _wikidata.py         # SPARQL client (stdlib urllib) + query
+├── _cache.py            # JSON round-trip for {year: date}
+└── data/
+    └── super_bowl.json  # shipped snapshot
+scripts/
+└── build_super_bowl_snapshot.py
+examples/
+├── future_super_bowls.py   # year-keyed API demo
+└── by_date.py              # date-keyed API + holidays composition
+tests/
+├── test_super_bowl.py     # public API, mocked
+├── test_collection.py     # LazyDateMap, union, SpecialDays
+├── test_wikidata.py       # SPARQL client, mocked
+├── test_cache.py          # cache I/O
+└── test_live_wikidata.py  # opt-in, hits real Wikidata
+</code></pre>
+<p>The public modules are <code>super_bowl</code> (and future siblings).
+Anything prefixed with <code>_</code> is internal: callers shouldn't depend
+on its signature, and tests are free to monkeypatch it.</p>
+
+<h2 id="api">Public API surface</h2>
+<p>The package exposes two parallel APIs over the same underlying data.
+Pick whichever fits the question being asked.</p>
+<ul>
+  <li><strong>Year-keyed (functional)</strong> — per-event module
+    (<code>special_days.super_bowl</code>) with <code>date(year)</code>
+    answering "when is THIS year's game?" Best for planners and
+    schedulers.</li>
+  <li><strong>Date-keyed (class)</strong> — <code>SuperBowl</code>,
+    <code>SpecialDays</code>, <code>LazyDateMap</code>, all importable
+    from <code>special_days</code>. Mirrors the
+    <a href="https://pypi.org/project/holidays/"><code>holidays</code></a>
+    package's dict-like interface. Best for "is THIS date special?"
+    composition.</li>
+</ul>
+<p>Every event module exposes the same four-function shape:</p>
+<table>
+  <thead>
+    <tr><th>Function</th><th>Behavior</th><th>Network?</th></tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code>date(year, allow_network=True)</code></td>
+      <td>Returns the <code>datetime.date</code> for the event in
+          <code>year</code>. Raises <code>KeyError</code> if unknown and
+          network is disallowed or also lacks the year.</td>
+      <td>Yes, on miss (unless opted out).</td>
+    </tr>
+    <tr>
+      <td><code>is_super_bowl_sunday(d, allow_network=False)</code></td>
+      <td>Predicate over a <code>date</code>. Default is local-only:
+          historical "is this Super Bowl Sunday?" should never page over the
+          network, and an honest "no" for an unknown future year is the
+          right answer for almost all callers.</td>
+      <td>No by default.</td>
+    </tr>
+    <tr>
+      <td><code>all_known()</code></td>
+      <td>Returns a <em>copy</em> of everything we know offline
+          (cache merged over snapshot). Mutating the result is safe and does
+          not affect subsequent calls.</td>
+      <td>No.</td>
+    </tr>
+    <tr>
+      <td><code>refresh()</code></td>
+      <td>Force a Wikidata fetch and rewrite the cache. Propagates
+          <code>WikidataUnavailable</code> on network/HTTP/JSON failure.</td>
+      <td>Yes, always.</td>
+    </tr>
+  </tbody>
+</table>
+
+<h2 id="class-api">Date-keyed class API (<code>holidays</code>-compatible)</h2>
+<p>Every event also has a class form: <code>SuperBowl</code> in
+<code>super_bowl.py</code>, registered in
+<code>special_days.EVENT_REGISTRY</code>. The class is a
+<code>dict[date, str]</code> subclass that populates lazily per-year on
+first access — the same shape used by <code>holidays.HolidayBase</code>.</p>
+<pre><code>from datetime import date
+from special_days import SuperBowl
+
+sb = SuperBowl()                       # nothing loaded yet
+date(2025, 2, 9) in sb                 # True; loads year 2025
+sb[date(2025, 2, 9)]                   # 'Super Bowl'
+sb.get_list(date(2025, 2, 9))          # ['Super Bowl']
+list(sb)                               # [date(2025, 2, 9)] — only loaded keys
+</code></pre>
+<p>Three composition entry points layered on top:</p>
+<table>
+  <thead>
+    <tr><th>Symbol</th><th>Use case</th></tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code>SpecialDays(events=[...])</code></td>
+      <td>Lazy union of multiple registered events. Accepts string
+          names, event classes, or pre-built instances. With no
+          argument, includes everything in <code>EVENT_REGISTRY</code>.</td>
+    </tr>
+    <tr>
+      <td><code>union(a, b, ...)</code></td>
+      <td>Lazy union of arbitrary date-keyed dict-likes. Use this to
+          mix our events with <code>holidays.HolidayBase</code>
+          instances, since the <code>|</code> operator on those may
+          not play nicely across libraries.</td>
+    </tr>
+    <tr>
+      <td><code>LazyDateMap</code></td>
+      <td>Read-only view returned by both of the above. Exposed
+          primarily for type hints; users normally don't construct it
+          directly.</td>
+    </tr>
+  </tbody>
+</table>
+<h3>Lazy semantics</h3>
+<p>Two rules govern all four lookup operations
+(<code>__contains__</code>, <code>__getitem__</code>, <code>get</code>,
+<code>get_list</code>):</p>
+<ol>
+  <li><strong>Year-by-year</strong>. A lookup at <code>date(2025, ...)</code>
+    loads the entries for 2025 (if not already loaded) and only 2025.
+    Each event keeps a <code>set[int]</code> of "years we've decided
+    about" so a year with no announced date doesn't trigger repeated
+    fetches.</li>
+  <li><strong>Source-by-source on union</strong>. <code>LazyDateMap</code>
+    walks its sources in order and short-circuits at the first match for
+    <code>in</code> / <code>[]</code> / <code>get</code>. <code>get_list</code>
+    visits every source so multiple labels for the same date are all
+    returned. Iteration deduplicates keys across sources.</li>
+</ol>
+<p>Critically, <code>for k in sd</code> does <em>not</em> force a load —
+it iterates over the dict storage actually populated so far, which is
+just the years you've already touched (or what <code>years=[...]</code>
+preloaded). This mirrors <code>holidays.US()</code>'s behavior.</p>
+<h3>Labels</h3>
+<p>By default, the value for a hit is the constant event name
+(<code>"Super Bowl"</code>). This is deliberate: it makes
+<code>name -&gt; emoji</code>-style flat-dict lookups work without
+year-specific special-casing. Pass <code>label_with_edition=True</code>
+on construction to get edition-numbered labels
+(<code>"Super Bowl LIX"</code>) for display strings. Edition numbers are
+Roman; Super Bowl 50 (2016) is the documented Arabic-numeral exception.</p>
+<h3>Adding a new event class</h3>
+<p>Subclass <code>_Event</code>, give it a constant <code>name</code>,
+implement <code>_date_lookup(year)</code> (raising <code>KeyError</code>
+if unknown) and <code>_upstream_refresh()</code>, then register it in
+<code>EVENT_REGISTRY</code> in <code>__init__.py</code>. The dict-like
+surface, lazy population, <code>refresh()</code>, and
+<code>years=</code> constructor argument all come for free from the
+base class.</p>
+
+<h2 id="tiers">The three-tier lookup</h2>
+<p>Every lookup walks three sources in this order. Each tier is the
+authority for an answer the previous tier didn't have.</p>
+<ol>
+  <li><strong>Shipped snapshot.</strong> <code>data/super_bowl.json</code>,
+    loaded via <code>importlib.resources</code>. Read once per call (cheap);
+    always available, even with no filesystem write access and no network.</li>
+  <li><strong>Per-user cache.</strong>
+    <code>$XDG_CACHE_HOME/special-days/super_bowl.json</code> (or
+    <code>~/.cache/special-days/</code>). Holds anything we've fetched
+    fresh since the snapshot. Merged <em>on top of</em> the snapshot, so
+    cache entries win on key collision.</li>
+  <li><strong>Wikidata SPARQL.</strong> Hit only when (1) ∪ (2) didn't have
+    the year and <code>allow_network=True</code>. On success, the full
+    fetched dataset is written to the cache and the requested year is
+    returned.</li>
+</ol>
+
+<pre><code>caller
+  │
+  ▼
+date(year)
+  │  ┌──────────────────────┐
+  ├──► snapshot (in wheel) ──┐
+  │  └──────────────────────┘ │
+  │  ┌──────────────────────┐ │ merge (cache wins)
+  ├──► user cache (~/.cache)─┤
+  │  └──────────────────────┘ │
+  │                           ▼
+  │                       known dict
+  │                           │
+  │                           ├── year present? → return date
+  │                           │
+  │  ┌──────────────────────┐ │
+  └──► Wikidata SPARQL ◄─────┘ (only on miss + allow_network)
+       │
+       └─ writes full fresh dataset to cache, returns date or KeyError
+</code></pre>
+
+<h2 id="lifecycle">Lifecycle of a <code>date(year)</code> call</h2>
+<p>Reading <code>super_bowl.date()</code> top-to-bottom:</p>
+<ol>
+  <li><code>all_known()</code> is built: snapshot loaded from
+    <code>importlib.resources.files("special_days.data") / "super_bowl.json"</code>,
+    then <code>_cache.read_cache(_cache_path())</code> is merged on top.</li>
+  <li>If <code>year in known</code>, return <code>known[year]</code>. Done.</li>
+  <li>If <code>allow_network=False</code>, raise
+    <code>KeyError(year)</code>.</li>
+  <li>Otherwise call <code>_fetch_from_wikidata()</code>:
+    <code>_wikidata.fetch_super_bowl_dates()</code> runs the SPARQL query,
+    parses the result, and on a non-empty response writes the full
+    <code>{year: date}</code> dict to the cache file.</li>
+  <li>If the freshly fetched dict contains <code>year</code>, return it.
+    Otherwise raise <code>KeyError(year)</code>.</li>
+</ol>
+<p>Two implicit guarantees worth noting:</p>
+<ul>
+  <li>The snapshot is always loaded fresh from disk on every call. There
+    is no in-process memoization; this keeps test behavior simple and
+    avoids state that survives across <code>refresh()</code> calls.</li>
+  <li>The cache write is all-or-nothing: an empty Wikidata response
+    (e.g. transient parse failure) does <em>not</em> overwrite the cache
+    with <code>{}</code>. See <code>_fetch_from_wikidata</code>'s
+    <code>if fresh:</code> guard.</li>
+</ul>
+
+<h2 id="snapshot">The shipped snapshot</h2>
+<p>The snapshot is plain JSON, ISO dates keyed by stringified year:</p>
+<pre><code>{
+  "1967": "1967-01-15",
+  "1968": "1968-01-14",
+  ...
+  "2026": "2026-02-08"
+}
+</code></pre>
+<p>It is bundled into the wheel via
+<code>[tool.setuptools.package-data]</code> in
+<code>pyproject.toml</code>:</p>
+<pre><code>[tool.setuptools.package-data]
+special_days = ["data/*.json"]
+</code></pre>
+<p>Because of the <code>src/</code> layout, &ldquo;works for me in a
+checkout&rdquo; and &ldquo;works for a user who <code>pip install
+special-days</code>&rdquo; are different questions. If
+<code>package-data</code> were misconfigured, local tests would still pass
+(the file is on disk) but installed users would get an empty snapshot.
+Running tests against the installed package (<code>make install &amp;&amp;
+make test</code>) is the canonical check.</p>
+
+<h3>Two ways to regenerate</h3>
+<p><code>scripts/build_super_bowl_snapshot.py</code> writes
+<code>src/special_days/data/super_bowl.json</code> from one of two
+sources:</p>
+<ul>
+  <li><code>make snapshot</code> (no <code>--live</code>) → the
+    <code>EMBEDDED</code> dict in the script. Hand-curated from
+    NFL.com / Wikipedia. <strong>This is the source of truth for the
+    shipped data.</strong> Use it when you want to ship a correction
+    independent of what Wikidata currently says.</li>
+  <li><code>make snapshot-live</code> → fetch from Wikidata. Use this
+    before a release to pick up newly-scheduled future games. Diff the
+    output against the embedded list before committing; if they disagree,
+    decide whose answer to ship.</li>
+</ul>
+
+<h2 id="cache">The on-disk cache</h2>
+<p>Same JSON shape as the snapshot. Location is
+<code>$XDG_CACHE_HOME/special-days/&lt;event&gt;.json</code>, falling back
+to <code>~/.cache/special-days/&lt;event&gt;.json</code>.</p>
+<p>The cache reader (<code>_cache.read_cache</code>) is deliberately
+permissive: any failure — missing file, malformed JSON, wrong top-level
+type, non-integer keys, non-ISO values — is treated as a cache miss and
+returns <code>{}</code>. The caller (the lookup pipeline) decides what to
+do next, which usually means &ldquo;fall through to the next tier.&rdquo;
+This is a load-bearing design choice: it means a corrupt cache file can
+never poison a lookup, only delay it by one network round-trip.</p>
+<p>The cache writer atomically rewrites the whole file via
+<code>Path.write_text</code> after <code>parents.mkdir(parents=True,
+exist_ok=True)</code>. It is not concurrency-safe across processes — two
+simultaneous <code>refresh()</code> calls could race — but for a
+single-user CLI/library use case this is fine.</p>
+
+<h2 id="sparql">The Wikidata SPARQL query</h2>
+<p>The query template lives in <code>_wikidata.py</code> as
+<code>EVENT_DATES_QUERY</code>:</p>
+<pre><code>SELECT ?item ?itemLabel ?date WHERE {
+  { ?item wdt:P31  wd:{qid} . }    # instance of
+  UNION
+  { ?item wdt:P361 wd:{qid} . }    # part of
+  UNION
+  { ?item wdt:P179 wd:{qid} . }    # part of the series
+  ?item p:P585 ?statement .
+  ?statement psv:P585 ?dateValue .
+  ?dateValue wikibase:timeValue ?date .
+  ?dateValue wikibase:timePrecision ?precision .
+  FILTER(?precision &gt;= 11)       # day precision or finer
+  SERVICE wikibase:label { bd:serviceParam wikibase:language "en". }
+}
+ORDER BY ?date
+</code></pre>
+<p>The <code>UNION</code> over three predicates is intentional: Wikidata
+contributors use different relationship properties to attach an event
+instance to its series, and conventions drift over time. Matching all
+three gives the query the best chance of surviving a re-modeling.</p>
+<p>The statement-level path (<code>p:P585</code> →
+<code>psv:P585</code>) exists to read the
+<code>wikibase:timePrecision</code> qualifier. Wikidata stores P585
+("point in time") values with a precision: <code>11 = day</code>,
+<code>10 = month</code>, <code>9 = year</code>. An upcoming event
+announced only down to the month (e.g. "February 2029") gets stored
+with precision 10 and a placeholder day of <code>YYYY-MM-01</code>. The
+<code>FILTER(?precision &gt;= 11)</code> excludes those placeholders so
+they don't silently leak into results as bogus Feb-1 dates. (This bug
+existed in v0.1.0 and was fixed in v0.2.0 — see
+<code>test_live_wikidata.test_all_returned_dates_are_sundays</code>,
+which would catch the regression.)</p>
+<p>The HTTP layer (<code>sparql_query</code>) does only what's strictly
+necessary:</p>
+<ul>
+  <li>GETs <code>https://query.wikidata.org/sparql?query=...</code> with
+    <code>Accept: application/sparql-results+json</code>.</li>
+  <li>Sends a polite <code>User-Agent</code> identifying the package and
+    version, as
+    <a href="https://meta.wikimedia.org/wiki/User-Agent_policy">Wikimedia's
+    policy</a> requires.</li>
+  <li>Wraps every error — <code>HTTPError</code>, <code>URLError</code>,
+    <code>TimeoutError</code>, decode failures, non-JSON bodies — in a
+    single <code>WikidataUnavailable</code> exception. The lookup
+    pipeline catches nothing; it lets the exception propagate to
+    <code>refresh()</code> callers.</li>
+</ul>
+<p>The response is parsed by <code>parse_event_results</code>, which walks
+the standard
+<a href="https://www.w3.org/TR/sparql11-results-json/">SPARQL 1.1 Query
+Results JSON Format</a> shape:</p>
+<pre><code>results.bindings[*].date.value  →  "2025-02-09T00:00:00Z"
+</code></pre>
+<p>The Z suffix is rewritten to <code>+00:00</code> so
+<code>datetime.fromisoformat</code> on pre-3.11 interpreters accepts it.
+Bindings missing a <code>date</code> are skipped; unparseable dates are
+skipped. When two events of the same series fall in the same calendar
+year (rare but possible — think rescheduled World Series), the earlier
+one wins via <code>setdefault</code>, so results are deterministic across
+runs.</p>
+
+<h2 id="network">Network policy and failure modes</h2>
+<table>
+  <thead>
+    <tr><th>Scenario</th><th>Behavior</th></tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code>date(known_year)</code></td>
+      <td>Never touches the network. Returns from snapshot/cache.</td>
+    </tr>
+    <tr>
+      <td><code>date(unknown_year, allow_network=False)</code></td>
+      <td>Raises <code>KeyError</code>. No network attempt.</td>
+    </tr>
+    <tr>
+      <td><code>date(unknown_year)</code>, Wikidata online, year present</td>
+      <td>One SPARQL request. Cache rewritten with the full fetched set.
+          Returns the date.</td>
+    </tr>
+    <tr>
+      <td><code>date(unknown_year)</code>, Wikidata online, year absent</td>
+      <td>One SPARQL request. Cache rewritten. Raises <code>KeyError</code>.</td>
+    </tr>
+    <tr>
+      <td><code>date(unknown_year)</code>, Wikidata unavailable</td>
+      <td><code>WikidataUnavailable</code> propagates from
+          <code>refresh()</code>; for <code>date()</code> it is not
+          caught, so callers see it.</td>
+    </tr>
+    <tr>
+      <td><code>is_super_bowl_sunday(d)</code></td>
+      <td>Never touches the network unless <code>allow_network=True</code>
+          is passed explicitly. <code>KeyError</code> is caught and
+          converted to <code>False</code>.</td>
+    </tr>
+    <tr>
+      <td><code>refresh()</code></td>
+      <td>Always one SPARQL request. Returns the freshly-fetched dict.
+          <code>WikidataUnavailable</code> on any failure.</td>
+    </tr>
+  </tbody>
+</table>
+
+<h2 id="maintenance">Maintenance: regenerating the snapshot</h2>
+<p>Two situations trigger a snapshot refresh:</p>
+<ol>
+  <li><strong>A new game gets officially announced.</strong> Add the date
+    to the <code>EMBEDDED</code> dict at the top of
+    <code>scripts/build_super_bowl_snapshot.py</code>, then run
+    <code>make snapshot</code> to regenerate the JSON. Commit both.</li>
+  <li><strong>You want to verify against Wikidata before a release.</strong>
+    Run <code>make snapshot-live</code>, then <code>git diff
+    src/special_days/data/super_bowl.json</code>. If the diff is empty,
+    Wikidata agrees with the embedded list. If it shows differences,
+    investigate before committing.</li>
+</ol>
+<p>If the live tests start failing
+(<code>SPECIAL_DAYS_LIVE_TESTS=1 make test-live</code>), Wikidata has
+probably reshaped its data model for that event. The first place to look
+is <code>EVENT_DATES_QUERY</code> in <code>_wikidata.py</code>. After
+updating, cut a new release so users of the network fallback get the
+fixed query.</p>
+
+<h2 id="extending">Extending: adding a new event type</h2>
+<p>To add, say, the Oscars:</p>
+<ol>
+  <li>Find the Wikidata Q-ID for the series (e.g., the Academy Awards is
+    <code>Q19020</code>; verify on wikidata.org).</li>
+  <li>Create <code>src/special_days/oscars.py</code> mirroring
+    <code>super_bowl.py</code>:
+    <ul>
+      <li><strong>Functional surface</strong>: <code>date(year)</code>,
+        an <code>is_oscars_night</code>-style predicate,
+        <code>all_known()</code>, <code>refresh()</code>, plus the
+        internal <code>_SNAPSHOT_RESOURCE</code> /
+        <code>_CACHE_FILENAME</code> constants.</li>
+      <li><strong>Class surface</strong>: an <code>Oscars(_Event)</code>
+        class with a constant <code>name</code> attribute and
+        <code>_date_lookup</code> / <code>_upstream_refresh</code> /
+        (optionally) <code>_label_for</code> overrides.</li>
+    </ul>
+  </li>
+  <li>Add a thin wrapper in <code>_wikidata.py</code>:
+    <code>fetch_oscars_dates()</code> just calls
+    <code>fetch_event_dates("Q19020")</code>. The SPARQL query template
+    is already general.</li>
+  <li>Build a snapshot: extend
+    <code>scripts/build_super_bowl_snapshot.py</code> into a similar
+    <code>build_oscars_snapshot.py</code> (or refactor the script if
+    you're adding more than one event at a time), with an
+    <code>EMBEDDED</code> dict of hand-verified dates.</li>
+  <li>Add <code>data/oscars.json</code> by running the script. The
+    <code>package-data</code> glob (<code>data/*.json</code>) already
+    picks it up.</li>
+  <li>Register the class in <code>__init__.py</code>: add
+    <code>"oscars": Oscars</code> to <code>EVENT_REGISTRY</code> and
+    re-export <code>Oscars</code>. This makes
+    <code>SpecialDays(events=["oscars"])</code> and
+    <code>SpecialDays()</code> (defaulting to all events) work.</li>
+  <li>Add tests mirroring the Super Bowl tests, including a live test
+    that verifies the SPARQL query against the real endpoint.</li>
+</ol>
+<p>Don't generalize prematurely beyond <code>_Event</code>. Each event
+module is small; the cost of light duplication in
+<code>super_bowl.py</code>-shaped files is lower than the cost of
+building elaborate per-event abstractions before they're warranted.</p>
+
+<h2 id="testing">Testing model</h2>
+<p>The test suite is intentionally layered:</p>
+<ul>
+  <li><strong>Mocked unit tests</strong> (<code>test_super_bowl.py</code>,
+    <code>test_wikidata.py</code>, <code>test_cache.py</code>,
+    <code>test_collection.py</code>) run on every invocation of
+    <code>make test</code>. They mock at clear boundaries —
+    <code>special_days._wikidata.urlopen</code> for the HTTP layer, and
+    <code>special_days.super_bowl._fetch_from_wikidata</code> for the
+    public-API tests. Tests do not reach across modules to mock.
+    <code>test_collection.py</code> covers <code>LazyDateMap</code>,
+    <code>union</code>, and the <code>SpecialDays</code> registry,
+    including an end-to-end interop test that simulates a
+    <code>holidays.HolidayBase</code> source.</li>
+  <li><strong>Live Wikidata tests</strong>
+    (<code>test_live_wikidata.py</code>) are gated on
+    <code>SPECIAL_DAYS_LIVE_TESTS=1</code> and skip by default. Their
+    job is to detect query drift: if Wikidata's modeling of the Super
+    Bowl changes such that our SPARQL query no longer returns the right
+    items, these tests fail loudly. Run them before cutting a release.</li>
+</ul>
+<p>Sample test invocations:</p>
+<pre><code># everything fast (default)
+make test
+
+# one class
+.venv/bin/python -m unittest tests.test_super_bowl.UnknownYearTests -v
+
+# one method
+.venv/bin/python -m unittest \
+  tests.test_super_bowl.UnknownYearTests.test_raises_when_network_also_lacks_year
+
+# include live Wikidata
+make test-live
+</code></pre>
+
+<hr>
+<p><small>Reference: <a href="https://www.w3.org/TR/sparql11-results-json/">SPARQL 1.1 Query Results JSON Format (W3C)</a>,
+<a href="https://meta.wikimedia.org/wiki/User-Agent_policy">Wikimedia User-Agent policy</a>,
+<a href="https://www.wikidata.org/wiki/Q32096">Q32096 (Super Bowl, Wikidata)</a>.</small></p>
+
+</body>
+</html>

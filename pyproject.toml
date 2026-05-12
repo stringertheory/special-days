@@ -1,0 +1,44 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "special-days"
+version = "0.2.0"
+description = "Lookup dates for events that cause unusual attendance patterns (Super Bowl, Oscars, World Series, ...) using Wikidata as the source of truth."
+readme = "README.md"
+requires-python = ">=3.9"
+license = { text = "MIT" }
+authors = [{ name = "Mike Stringer", email = "mike.stringer.internet@gmail.com" }]
+keywords = ["super bowl", "events", "wikidata", "calendar", "attendance"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3 :: Only",
+    "Topic :: Office/Business :: Scheduling",
+]
+# Zero runtime dependencies: only the standard library. Anything we add
+# here is something we promise to keep working for the life of the package.
+dependencies = []
+
+[project.optional-dependencies]
+# Dev-only tooling. Not pulled in by `pip install special-days`.
+dev = ["pre-commit"]
+
+[project.urls]
+Homepage = "https://github.com/stringertheory/special-days"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+special_days = ["data/*.json", "py.typed"]
+
+[tool.ruff]
+line-length = 80
+target-version = "py39"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
