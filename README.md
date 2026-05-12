@@ -9,7 +9,7 @@ Zero runtime dependencies — only the Python standard library.
 
 ## Status
 
-Alpha. Currently supports: Super Bowl. More events to come.
+Alpha. Currently supports: Super Bowl, Academy Awards (Oscars). More events to come.
 
 ## Install
 
@@ -65,14 +65,16 @@ via `union(...)`, preserving laziness on both sides:
 import holidays
 from special_days import SpecialDays, union
 
-combined = union(holidays.US(), SpecialDays(events=["super_bowl"]))
+combined = union(holidays.US(), SpecialDays())   # all known events
 combined.get_list(date(2025, 2, 9))    # ['Super Bowl']
+combined.get_list(date(2025, 3, 2))    # ['Academy Awards']
 combined.get_list(date(2025, 7, 4))    # ['Independence Day']
 ```
 
 `SpecialDays(events=...)` accepts registered string names
-(`"super_bowl"`), event classes (`SuperBowl`), or pre-built instances.
-With no argument it includes everything the package ships.
+(`"super_bowl"`, `"oscars"`), event classes (`SuperBowl`, `Oscars`),
+or pre-built instances. With no argument it includes everything the
+package ships.
 
 ### Far-future years
 
@@ -130,15 +132,17 @@ cut a new release.
 
 ## Maintenance
 
-To regenerate the shipped snapshot from current Wikidata data:
+To regenerate every shipped snapshot from current Wikidata data:
 
 ```bash
-make snapshot-live
+make snapshots-live
 ```
 
-`make snapshot` (no `-live`) writes the embedded hand-curated list — use
-this if Wikidata is wrong about a specific date and you want to ship a
-correction.
+`make snapshots` (no `-live`) writes embedded hand-curated lists where
+they exist — use this if Wikidata is wrong about a specific date and
+you want to ship a correction. Per-event targets:
+`make snapshot-super-bowl`, `make snapshot-super-bowl-live`,
+`make snapshot-oscars`, `make snapshot-oscars-live`.
 
 ## License
 

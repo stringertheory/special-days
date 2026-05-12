@@ -38,10 +38,12 @@ except PackageNotFoundError:  # not installed (raw source-tree usage)
 
 from ._event import _Event
 from ._lazy import LazyDateMap, union
+from .oscars import Oscars
 from .super_bowl import SuperBowl
 
 EVENT_REGISTRY: dict[str, type[_Event]] = {
     "super_bowl": SuperBowl,
+    "oscars": Oscars,
 }
 
 
@@ -83,6 +85,7 @@ class SpecialDays(LazyDateMap):
 __all__ = [
     "EVENT_REGISTRY",
     "LazyDateMap",
+    "Oscars",
     "SpecialDays",
     "SuperBowl",
     "union",

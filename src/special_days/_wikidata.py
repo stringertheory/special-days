@@ -137,3 +137,16 @@ def fetch_super_bowl_dates() -> dict[int, date]:
     """Convenience wrapper: all known Super Bowl dates from Wikidata."""
     # Q32096 is the Wikidata item for "Super Bowl".
     return fetch_event_dates("Q32096")
+
+
+def fetch_oscars_dates() -> dict[int, date]:
+    """Convenience wrapper: all known Academy Awards ceremony dates."""
+    # Q19020 is the Wikidata item for "Academy Awards".
+    data = fetch_event_dates("Q19020")
+    # Wikidata's Q109886 ("1st Academy Awards") has two P585 statements --
+    # 1928-05-16 and 1929-05-16 -- both at day precision. The real
+    # ceremony was 1929-05-16 (per Wikipedia, the Academy, and
+    # contemporaneous press coverage); drop the 1928 phantom so the
+    # snapshot doesn't gain a year that never had a ceremony.
+    data.pop(1928, None)
+    return data

@@ -13,13 +13,13 @@ import os
 import unittest
 from datetime import date
 
-from special_days._wikidata import fetch_super_bowl_dates
+from special_days._wikidata import fetch_oscars_dates, fetch_super_bowl_dates
 
 LIVE = os.environ.get("SPECIAL_DAYS_LIVE_TESTS") == "1"
 
 
 @unittest.skipUnless(LIVE, "Set SPECIAL_DAYS_LIVE_TESTS=1 to enable.")
-class LiveWikidataTests(unittest.TestCase):
+class LiveSuperBowlTests(unittest.TestCase):
     def test_super_bowl_query_returns_known_dates(self):
         result = fetch_super_bowl_dates()
         # These are historical facts — if Wikidata disagrees with them,
@@ -45,3 +45,29 @@ class LiveWikidataTests(unittest.TestCase):
         # weekday(): Monday is 0, Sunday is 6.
         non_sundays = {y: d for y, d in result.items() if d.weekday() != 6}
         self.assertEqual(non_sundays, {})
+
+
+@unittest.skipUnless(LIVE, "Set SPECIAL_DAYS_LIVE_TESTS=1 to enable.")
+class LiveOscarsTests(unittest.TestCase):
+    def test_oscars_query_returns_known_dates(self):
+        result = fetch_oscars_dates()
+        # Modern, easily-verifiable ceremony dates.
+        self.assertEqual(result.get(1929), date(1929, 5, 16))  # 1st
+        self.assertEqual(result.get(2024), date(2024, 3, 10))  # 96th
+        self.assertEqual(result.get(2025), date(2025, 3, 2))  # 97th
+
+    def test_oscars_query_drops_1928_phantom(self):
+        """Wikidata's Q109886 carries a spurious 1928-05-16 P585 claim;
+        fetch_oscars_dates() filters it out. If this test fails, either
+        the bad claim was fixed upstream (great -- we can drop the
+        workaround) or the workaround is broken.
+        """
+        result = fetch_oscars_dates()
+        self.assertNotIn(1928, result)
+
+    def test_oscars_query_returns_reasonable_count(self):
+        result = fetch_oscars_dates()
+        # 97+ ceremonies since 1929. If we get nothing or 1000s,
+        # something's wrong with the query.
+        self.assertGreater(len(result), 80)
+        self.assertLess(len(result), 200)

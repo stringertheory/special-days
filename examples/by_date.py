@@ -16,7 +16,7 @@ import holidays
 from special_days import SpecialDays, union
 
 MD_HOLIDAYS = holidays.country_holidays("US", subdiv="MD")
-SPECIAL = SpecialDays(events=["super_bowl"])
+SPECIAL = SpecialDays()  # all events the package ships
 ALL_SPECIAL = union(MD_HOLIDAYS, SPECIAL)
 
 EMOJI = {
@@ -33,6 +33,7 @@ EMOJI = {
     "American Indian Heritage Day": "🪶",
     "Christmas Day": "🎄",
     "Super Bowl": "🏈",
+    "Academy Awards": "🎬",
 }
 
 
@@ -51,8 +52,9 @@ def main():
         today,
         date(today.year, 7, 4),
         date(today.year, 12, 25),
-        date(2025, 2, 9),
-        date(2025, 5, 1),
+        date(2025, 2, 9),  # SB LIX
+        date(2025, 3, 2),  # 97th Academy Awards
+        date(2025, 5, 1),  # nothing
     ]
     for d in sample:
         hits = get_special(d)

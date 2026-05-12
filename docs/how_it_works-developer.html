@@ -88,8 +88,8 @@ or adding a new event type.</p>
 
 <h2 id="scope">What this package is (and isn't)</h2>
 <p>Given a year, return the date on which a calendar-disrupting event
-occurred (or will occur). The first supported event is the NFL Super Bowl.
-The package is intentionally tiny:</p>
+occurred (or will occur). Currently ships the NFL Super Bowl and the
+Academy Awards (Oscars). The package is intentionally tiny:</p>
 <ul>
   <li><strong>Zero runtime dependencies.</strong> Only the Python standard
     library. <code>urllib</code> handles HTTP; <code>json</code> handles
@@ -108,19 +108,24 @@ where the official date is announced once and rarely changes.</p>
 <pre><code>src/special_days/
 ├── __init__.py          # re-exports, SpecialDays, EVENT_REGISTRY
 ├── super_bowl.py        # functional API + SuperBowl class
+├── oscars.py            # functional API + Oscars class
 ├── _event.py            # _Event abstract base for event classes
 ├── _lazy.py             # LazyDateMap + union (lazy view composition)
 ├── _wikidata.py         # SPARQL client (stdlib urllib) + query
 ├── _cache.py            # JSON round-trip for {year: date}
+├── py.typed             # PEP 561 marker for downstream type checkers
 └── data/
-    └── super_bowl.json  # shipped snapshot
+    ├── super_bowl.json  # shipped snapshot
+    └── oscars.json      # shipped snapshot
 scripts/
-└── build_super_bowl_snapshot.py
+├── build_super_bowl_snapshot.py
+└── build_oscars_snapshot.py
 examples/
 ├── future_super_bowls.py   # year-keyed API demo
 └── by_date.py              # date-keyed API + holidays composition
 tests/
 ├── test_super_bowl.py     # public API, mocked
+├── test_oscars.py         # public API, mocked
 ├── test_collection.py     # LazyDateMap, union, SpecialDays
 ├── test_wikidata.py       # SPARQL client, mocked
 ├── test_cache.py          # cache I/O
