@@ -1,30 +1,76 @@
-"""special-days: lookup dates for special events.
+"""special-days: dates of named recurring events.
 
-Two ways to use the package:
+Ships dates for events like Super Bowl Sunday and the Academy Awards
+-- the kind of date that isn't a public holiday but matters for
+"what's special about today?" features. Drop-in compatible with the
+`holidays <https://pypi.org/project/holidays/>`_ package via
+:func:`union`.
 
-  Functional, year-keyed::
+The most common use ("is today special?"):
 
-      from special_days import super_bowl
-      super_bowl.date(2025)               # datetime.date(2025, 2, 9)
+>>> from datetime import date
+>>> from special_days import SpecialDays
+>>> sd = SpecialDays()
+>>> sd.get_list(date(2025, 2, 9))
+['Super Bowl']
+>>> sd.get_list(date(2025, 3, 2))
+['Academy Awards']
+>>> sd.get_list(date(2025, 5, 1))
+[]
 
-  ``holidays``-compatible, date-keyed::
+Compose with any other date-keyed mapping via :func:`union`. In
+production code, swap the plain dict below for ``holidays.US()``,
+``holidays.country_holidays("US", subdiv="MD")``, etc. -- the
+``holidays`` side stays lazy:
 
-      from datetime import date
-      from special_days import SuperBowl, SpecialDays, union
-      import holidays
+>>> from special_days import union
+>>> us_like = {date(2025, 7, 4): "Independence Day"}
+>>> combined = union(us_like, SpecialDays())
+>>> combined.get_list(date(2025, 2, 9))
+['Super Bowl']
+>>> combined.get_list(date(2025, 7, 4))
+['Independence Day']
+>>> combined.get_list(date(2025, 5, 1))
+[]
 
-      sb = SuperBowl()
-      date(2025, 2, 9) in sb              # True
-      sb[date(2025, 2, 9)]                # 'Super Bowl'
+Two parallel APIs over the same data:
 
-      # one merged view over many events
-      sd = SpecialDays(events=["super_bowl"])
-      # ... or mix with the holidays package
-      combined = union(holidays.US(), sd)
+* **Year-keyed module API.** ``from special_days import super_bowl``
+  then ``super_bowl.date(2025)``, ``super_bowl.dates(year)``,
+  ``super_bowl.is_super_bowl_sunday(d)``, ``super_bowl.all_known()``.
+  Same shape for ``oscars`` (``is_oscars_night``).
 
-Data ships inside the wheel; lookups are local and require no network.
-Snapshots are refreshed in CI from Wikidata; ``pip install --upgrade``
-pulls fresh data.
+* **Date-keyed class API** (``holidays``-compatible). ``SuperBowl()``,
+  ``Oscars()``, ``SpecialDays()`` are ``dict[date, str]`` subclasses
+  eagerly populated from the shipped snapshot at construction.
+  ``len(SuperBowl())`` is 61, iteration yields every known date, and
+  ``datetime`` keys are normalized to ``date`` on lookup.
+
+Public names exported from this package:
+
+* :class:`SuperBowl`, :class:`Oscars` -- per-event date-keyed dict
+  subclasses.
+* :class:`SpecialDays` -- merged view over every shipped event, or
+  a subset via ``SpecialDays(events=[...])``.
+* :func:`union`, :class:`LazyDateMap` -- compose with arbitrary
+  date-keyed mappings (including lazy ones like ``holidays``).
+* :class:`Event`, :class:`EventDict` -- the underlying building
+  blocks (used internally; relevant if you're adding a new event
+  series -- see ``docs/how_it_works.md``).
+* :data:`EVENT_REGISTRY` -- ``{name: dict_class}`` of shipped events.
+
+Runtime is offline. The shipped snapshot is the single source of
+truth at runtime; ``pip install --upgrade special-days`` pulls fresh
+dates (snapshots are refreshed daily in CI from Wikidata). For
+mid-run refresh in a long-running process, see
+``super_bowl.EVENT.fetch_from_wikidata()``.
+
+Errors at a glance:
+
+* Unknown year -> ``KeyError`` with an "upgrade the package" hint.
+* Non-``int`` year -> ``TypeError``.
+* Unknown event name to ``SpecialDays(events=[...])`` -> ``ValueError``
+  listing the known names.
 """
 
 from collections.abc import Iterable

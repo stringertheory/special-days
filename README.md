@@ -141,6 +141,51 @@ oscars.dates(1930)                       # [date(1930, 4, 3), date(1930, 11, 5)]
 `SpecialDays`/`Oscars` dicts contain *both* dates and label them
 distinctly when `label_with_edition=True`.
 
+## Recipes
+
+### Next upcoming event from today
+
+`is_super_bowl_sunday` over a date range, or just iterate `dates()` /
+`all_known()`:
+
+```python
+from datetime import date, timedelta
+from special_days import super_bowl
+
+today = date.today()
+upcoming = next(
+    d for d in (today + timedelta(days=i) for i in range(365 * 2))
+    if super_bowl.is_super_bowl_sunday(d)
+)
+```
+
+### All special days in a date range
+
+```python
+from datetime import date, timedelta
+from special_days import SpecialDays
+
+sd = SpecialDays()
+start, end = date(2025, 1, 1), date(2025, 12, 31)
+days = [d for d in (start + timedelta(days=i)
+                    for i in range((end - start).days + 1))
+        if d in sd]
+# [date(2025, 2, 9), date(2025, 3, 2)]
+```
+
+### Just one event, not all of them
+
+`SpecialDays(events=[...])` accepts string names, classes, or
+already-built instances:
+
+```python
+from special_days import SpecialDays, SuperBowl
+
+SpecialDays(events=["super_bowl"])      # by registered name
+SpecialDays(events=[SuperBowl])         # by class
+SpecialDays(events=[SuperBowl(years=[2024, 2025])])   # pre-filtered instance
+```
+
 ## Data freshness
 
 The shipped snapshot covers every event known to the maintainers at

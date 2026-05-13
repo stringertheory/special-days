@@ -4,6 +4,7 @@ import doctest
 from datetime import date, datetime
 from unittest import TestCase
 
+import special_days
 from special_days import (
     EVENT_REGISTRY,
     LazyDateMap,
@@ -16,7 +17,8 @@ from special_days import (
 
 
 def load_tests(loader, tests, ignore):
-    """Run doctests in special_days.lazy alongside the regular suite."""
+    """Run package and module doctests alongside the regular suite."""
+    tests.addTests(doctest.DocTestSuite(special_days))
     tests.addTests(doctest.DocTestSuite(lazy))
     return tests
 
