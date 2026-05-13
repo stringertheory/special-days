@@ -38,8 +38,10 @@ classifiers = [
 dependencies = []
 
 [project.optional-dependencies]
-# Dev-only tooling. Not pulled in by `pip install special-days`.
-dev = ["pre-commit", "mypy"]
+# Dev-only. Not pulled in by `pip install special-days`. `holidays`
+# is here so the interop doctest and examples/by_date.py run for real
+# in CI instead of stubbing the dep.
+dev = ["pre-commit", "mypy", "holidays"]
 
 [project.urls]
 Homepage = "https://github.com/stringertheory/special-days"

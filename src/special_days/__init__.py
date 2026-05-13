@@ -18,14 +18,15 @@ The most common use ("is today special?"):
 >>> sd.get_list(date(2025, 5, 1))
 []
 
-Compose with any other date-keyed mapping via :func:`union`. In
-production code, swap the plain dict below for ``holidays.US()``,
-``holidays.country_holidays("US", subdiv="MD")``, etc. -- the
-``holidays`` side stays lazy:
+Compose with the `holidays`_ package (or any other date-keyed
+mapping) via :func:`union`. The ``holidays`` side stays lazy --
+years are only computed when queried:
 
+.. _holidays: https://pypi.org/project/holidays/
+
+>>> import holidays
 >>> from special_days import union
->>> us_like = {date(2025, 7, 4): "Independence Day"}
->>> combined = union(us_like, SpecialDays())
+>>> combined = union(holidays.US(), SpecialDays())
 >>> combined.get_list(date(2025, 2, 9))
 ['Super Bowl']
 >>> combined.get_list(date(2025, 7, 4))
