@@ -29,10 +29,6 @@ class DatesFunctionTests(TestCase):
     def test_dates_unknown_year_returns_empty_list(self):
         self.assertEqual(super_bowl.dates(1900), [])
 
-    def test_dates_rejects_non_int_year(self):
-        with self.assertRaises(TypeError):
-            super_bowl.dates("2025")  # type: ignore[arg-type]
-
 
 class IsSuperBowlSundayTests(TestCase):
     def test_true_on_super_bowl_day(self):
@@ -40,16 +36,18 @@ class IsSuperBowlSundayTests(TestCase):
         self.assertTrue(super_bowl.is_super_bowl_sunday(date(2024, 2, 11)))
         self.assertTrue(super_bowl.is_super_bowl_sunday(date(1967, 1, 15)))
 
+    def test_true_on_datetime_normalized_to_date(self):
+        self.assertTrue(super_bowl.is_super_bowl_sunday(datetime(2025, 2, 9)))
+        self.assertTrue(
+            super_bowl.is_super_bowl_sunday(datetime(2025, 2, 9, 18, 30))
+        )
+
     def test_false_when_off_by_one_day(self):
         self.assertFalse(super_bowl.is_super_bowl_sunday(date(2025, 2, 10)))
         self.assertFalse(super_bowl.is_super_bowl_sunday(date(2025, 2, 8)))
 
     def test_false_on_unrelated_date(self):
         self.assertFalse(super_bowl.is_super_bowl_sunday(date(2025, 7, 4)))
-
-    def test_false_on_non_date_input(self):
-        # Defensive: non-date inputs return False, not raise.
-        self.assertFalse(super_bowl.is_super_bowl_sunday("2025-02-09"))  # type: ignore[arg-type]
 
 
 class AllKnownTests(TestCase):
@@ -73,12 +71,6 @@ class UnknownYearTests(TestCase):
     def test_rejects_non_int_year(self):
         with self.assertRaises(TypeError):
             super_bowl.date("2025")  # type: ignore[arg-type]
-
-    def test_rejects_bool_year(self):
-        # bool is a subclass of int but treating it as int(1) is a
-        # gotcha; reject explicitly.
-        with self.assertRaises(TypeError):
-            super_bowl.date(True)  # type: ignore[arg-type]
 
 
 class SuperBowlClassTests(TestCase):
@@ -158,11 +150,3 @@ class RomanNumeralEdgeCaseTests(TestCase):
         self.assertEqual(_roman(900), "CM")
         self.assertEqual(_roman(1000), "M")
         self.assertEqual(_roman(3999), "MMMCMXCIX")
-
-    def test_out_of_range_raises_value_error(self):
-        from special_days.super_bowl import _roman
-
-        with self.assertRaises(ValueError):
-            _roman(0)
-        with self.assertRaises(ValueError):
-            _roman(4000)

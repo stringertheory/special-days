@@ -1,9 +1,9 @@
 """Which future Super Bowls have been announced?
 
 Walks forward year by year, asking the package for each date. Unknown
-years raise KeyError; on the first miss, the package transparently
-refreshes from Wikidata, so subsequent KeyErrors really mean "not
-announced yet."
+years raise ``KeyError`` -- meaning "not in the shipped snapshot".
+Upgrade the package (``pip install --upgrade special-days``) to pick
+up newly-announced dates.
 """
 
 from datetime import date

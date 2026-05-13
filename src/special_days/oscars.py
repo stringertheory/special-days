@@ -41,7 +41,6 @@ _OSCARS_EDITIONS: dict[datetime.date, int] = {
     datetime.date(1934, 3, 16): 6,
     # From 1934-03-16 forward, edition = year - 1928.
 }
-_OSCARS_RESYNC_YEAR = 1934
 
 
 def _ordinal(n: int) -> str:
@@ -53,14 +52,9 @@ def _ordinal(n: int) -> str:
     return f"{n}{suffix}"
 
 
-def _edition_for(d: datetime.date) -> int:
-    if d in _OSCARS_EDITIONS:
-        return _OSCARS_EDITIONS[d]
-    return d.year - 1928
-
-
 def _edition_label(d: datetime.date) -> str:
-    return f"{_ordinal(_edition_for(d))} Academy Awards"
+    edition = _OSCARS_EDITIONS.get(d, d.year - 1928)
+    return f"{_ordinal(edition)} Academy Awards"
 
 
 _event = Event(

@@ -10,13 +10,9 @@ side is preserved.
 from __future__ import annotations
 
 from collections.abc import Iterator, Mapping
-from datetime import date, datetime
+from datetime import date
 
-
-def _normalize_date(key: object) -> object:
-    if isinstance(key, datetime):
-        return key.date()
-    return key
+from ._event import _normalize_date
 
 
 class LazyDateMap:
@@ -26,8 +22,8 @@ class LazyDateMap:
         self._sources: tuple[Mapping[date, str], ...] = sources
 
     def __contains__(self, key: object) -> bool:
-        key = _normalize_date(key)
-        return any(key in s for s in self._sources)
+        norm = _normalize_date(key)
+        return any(norm in s for s in self._sources)
 
     def __getitem__(self, key: date) -> str:
         norm = _normalize_date(key)
@@ -44,10 +40,10 @@ class LazyDateMap:
         return default
 
     def get_list(self, key: date) -> list[str]:
-        """All labels for ``key`` from every source. Mirrors
-        ``holidays.HolidayBase.get_list``; delegates to each source's
-        ``get_list`` if it has one (so ``holidays``'s semicolon-joined
-        values get split correctly), otherwise falls back to its value.
+        """All labels for ``key`` from every source. Delegates to each
+        source's ``get_list`` if it has one (so ``holidays``'s
+        semicolon-joined values get split correctly), otherwise falls
+        back to the source's value.
         """
         norm = _normalize_date(key)
         out: list[str] = []
@@ -81,7 +77,7 @@ def union(*sources: Mapping[date, str]) -> LazyDateMap:
     True
     >>> date(2025, 2, 9) in days
     True
-    >>> sorted(days.get_list(date(2025, 2, 9)))
+    >>> days.get_list(date(2025, 2, 9))
     ['Super Bowl']
     """
     return LazyDateMap(*sources)

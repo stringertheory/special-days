@@ -68,13 +68,11 @@ class SpecialDays(LazyDateMap):
     def _resolve(self, e: str | type[_EventDict] | _EventDict) -> _EventDict:
         if isinstance(e, str):
             try:
-                cls = EVENT_REGISTRY[e]
+                return EVENT_REGISTRY[e]()
             except KeyError:
-                known = sorted(EVENT_REGISTRY)
                 raise ValueError(
-                    f"Unknown event {e!r}. Known: {known}"
+                    f"Unknown event {e!r}. Known: {sorted(EVENT_REGISTRY)}"
                 ) from None
-            return cls()
         if isinstance(e, type):
             return e()
         return e
