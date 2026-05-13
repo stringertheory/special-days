@@ -6,13 +6,15 @@
     >>> oscars.is_oscars_night(datetime.date(2025, 3, 2))
     True
 
-Data ships inside the wheel; ``pip install --upgrade`` pulls fresh
-dates. Snapshots are refreshed in CI on a daily schedule.
-
 Note: the Oscars ceremony year is the year it was held, which is
 usually the year after the films it honors. So ``date(2025)`` returns
 the 97th Academy Awards (March 2, 2025), which awarded films released
-in 2024.
+in 2024. 1930 hosted two ceremonies (the 2nd in April and the 3rd in
+November); ``date(1930)`` returns the earlier, and :func:`dates` gives
+both.
+
+Data ships inside the wheel; ``pip install --upgrade`` pulls fresh
+dates. Snapshots are refreshed in CI on a daily schedule.
 """
 
 from __future__ import annotations
@@ -56,38 +58,11 @@ EVENT = Event(
     edition_label=_edition_label,
 )
 
-# Year-keyed functional API ------------------------------------------------
+# Year-keyed API: aliases of the Event's methods.
+date = EVENT.first_date
+dates = EVENT.dates
+all_known = EVENT.all_known
+is_oscars_night = EVENT.contains_date
 
-
-def date(year: int) -> datetime.date:
-    """Return the date of the Academy Awards ceremony in ``year``.
-
-    If two ceremonies fall in the same calendar year (it has happened
-    once, in 1930), returns the earlier; use :func:`dates` to get both.
-    Raises ``KeyError`` if the year is not in the shipped snapshot.
-    """
-    return EVENT.first_date(year)
-
-
-def dates(year: int) -> list[datetime.date]:
-    """All known Academy Awards ceremony dates in ``year``.
-
-    Usually a list of length 1; 1930 has two (2nd Academy Awards in
-    April and the 3rd in November).
-    """
-    return EVENT.dates(year)
-
-
-def all_known() -> dict[int, datetime.date]:
-    """``{year: first date}`` for every ceremony in the shipped snapshot."""
-    return EVENT.all_known()
-
-
-def is_oscars_night(d: datetime.date) -> bool:
-    """``True`` iff ``d`` is the date of a known Academy Awards ceremony."""
-    return EVENT.contains_date(d)
-
-
-# Date-keyed (holidays-compatible) class API -------------------------------
-
+# Date-keyed (holidays-compatible) class API.
 Oscars = EVENT.cls()

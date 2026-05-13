@@ -383,10 +383,11 @@ To add, say, the World Series:
        edition_label=_edition_label,
    )
 
-   def date(year): return EVENT.first_date(year)
-   def dates(year): return EVENT.dates(year)
-   def all_known(): return EVENT.all_known()
-   def is_world_series_game(d): return EVENT.contains_date(d)
+   # Year-keyed API: aliases of the Event's methods.
+   date = EVENT.first_date
+   dates = EVENT.dates
+   all_known = EVENT.all_known
+   is_world_series_game = EVENT.contains_date
 
    WorldSeries = EVENT.cls()
    ```

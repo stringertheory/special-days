@@ -6,6 +6,10 @@
     >>> super_bowl.is_super_bowl_sunday(datetime.date(2025, 2, 9))
     True
 
+Note: the Super Bowl is the championship for the previous NFL season.
+``date(2025)`` returns Super Bowl LIX (February 9, 2025), which capped
+the 2024 NFL season.
+
 Data ships inside the wheel; ``pip install --upgrade`` pulls fresh
 dates. Snapshots are refreshed in CI on a daily schedule.
 """
@@ -41,38 +45,11 @@ EVENT = Event(
     edition_label=_edition_label,
 )
 
-# Year-keyed functional API ------------------------------------------------
+# Year-keyed API: aliases of the Event's methods.
+date = EVENT.first_date
+dates = EVENT.dates
+all_known = EVENT.all_known
+is_super_bowl_sunday = EVENT.contains_date
 
-
-def date(year: int) -> datetime.date:
-    """Return the date of the Super Bowl played in ``year``.
-
-    Note: the Super Bowl is the championship for the previous NFL
-    season. ``date(2025)`` returns Super Bowl LIX (February 9, 2025),
-    which capped the 2024 NFL season.
-
-    Raises ``KeyError`` if the year is not in the shipped snapshot.
-    Upgrade the package (``pip install --upgrade special-days``) to
-    pick up newly-announced dates.
-    """
-    return EVENT.first_date(year)
-
-
-def dates(year: int) -> list[datetime.date]:
-    """All known Super Bowl dates in ``year`` (always 0 or 1)."""
-    return EVENT.dates(year)
-
-
-def all_known() -> dict[int, datetime.date]:
-    """``{year: date}`` for every Super Bowl in the shipped snapshot."""
-    return EVENT.all_known()
-
-
-def is_super_bowl_sunday(d: datetime.date) -> bool:
-    """``True`` iff ``d`` is the date of a known Super Bowl."""
-    return EVENT.contains_date(d)
-
-
-# Date-keyed (holidays-compatible) class API -------------------------------
-
+# Date-keyed (holidays-compatible) class API.
 SuperBowl = EVENT.cls()
