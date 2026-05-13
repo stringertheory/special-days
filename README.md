@@ -1,6 +1,7 @@
 # special-days
 
 [![tests](https://github.com/stringertheory/special-days/actions/workflows/ci.yml/badge.svg)](https://github.com/stringertheory/special-days/actions/workflows/ci.yml)
+[![PyPI](https://img.shields.io/pypi/v/special-days.svg)](https://pypi.org/project/special-days/)
 
 Lookup dates for events that cause unusual attendance patterns at venues:
 Super Bowl Sunday, Oscars night, World Series Game 7, NCAA championship,
