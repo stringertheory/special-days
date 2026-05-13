@@ -16,7 +16,7 @@ mid-run — see [the dev guide](docs/how_it_works.md#opt-in-refreshing-from-wiki
 
 > **Status: Alpha.** Currently ships Super Bowl + Academy Awards
 > (Oscars). The API is still moving — expect breaking changes on any
-> release until the maintenance process has run for a while and we've
+> release until the maintenance process has run for a while and I've
 > learned what wants to change.
 
 ## Install

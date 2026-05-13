@@ -32,7 +32,7 @@ from .numerals import ordinal
 # 5th), then no ceremony at all in 1933, and the 6th ceremony in March
 # 1934. From 1934 on, the formula resyncs to ``year - 1928``.
 #
-# We key on the exact ceremony date so that the 2nd and 3rd Academy
+# Keyed on the exact ceremony date so that the 2nd and 3rd Academy
 # Awards -- both held in calendar year 1930 -- get distinct labels.
 _OSCARS_EDITIONS: dict[datetime.date, int] = {
     datetime.date(1929, 5, 16): 1,

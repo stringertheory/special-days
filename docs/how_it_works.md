@@ -126,7 +126,7 @@ Three composition entry points layered on top:
 | Symbol                              | Use case |
 |-------------------------------------|----------|
 | `SpecialDays(events=[...])`         | Merged view of multiple registered events. Accepts string names, event classes, or pre-built instances. With no argument, includes everything in `EVENT_REGISTRY`. |
-| `union(a, b, ...)`                  | Read-only union of arbitrary date-keyed dict-likes. Use this to mix our events with `holidays.HolidayBase` instances. |
+| `union(a, b, ...)`                  | Read-only union of arbitrary date-keyed dict-likes. Use this to mix this package's events with `holidays.HolidayBase` instances. |
 | `LazyDateMap`                       | The view returned by both of the above. Exposed primarily for type hints; users normally don't construct it directly. |
 
 ### Composition semantics
@@ -198,7 +198,7 @@ canonical check.
 `src/special_days/data/<event>.json` from the current Wikidata
 response, applying any per-event entries in its `OVERRIDES` dict on
 top. Wikidata is the source of truth; `OVERRIDES` is the escape hatch
-for "Wikidata is wrong about this date and we want to ship a
+for "Wikidata is wrong about this date and I want to ship a
 correction now." Empty in the steady state.
 
 `make snapshot-super-bowl`, `make snapshot-oscars`, and `make
@@ -244,9 +244,9 @@ date is a Sunday — a non-Sunday is a strong signal a precision-10
 placeholder slipped through.
 
 `?rank != wikibase:DeprecatedRank` excludes statements editors have
-explicitly marked as known-wrong. Honoring rank means we don't have
-to maintain per-event override lists in code; editors fix things
-upstream, and our query stops returning them.
+explicitly marked as known-wrong. Honoring rank means the package
+doesn't have to maintain per-event override lists in code; editors
+fix things upstream, and the query stops returning them.
 
 The HTTP layer (`sparql_query`) does only what's strictly necessary:
 
@@ -288,7 +288,7 @@ dict-like lookup answers from the shipped snapshot, on disk in the
 wheel. No filesystem cache, no `~/.cache/special-days/`, no
 `XDG_CACHE_HOME`, no proxy variables read. A user-installed package
 making outbound HTTPS requests is a footgun in firewalled or
-sandboxed environments; we don't, unless you ask.
+sandboxed environments; this package doesn't, unless you ask.
 
 Snapshot-build scripts: only ever invoked manually
 (`make snapshots`) or in CI (the scheduled refresh workflow).
@@ -447,7 +447,7 @@ The test suite is intentionally layered:
 * **Live Wikidata tests** (`test_live_wikidata.py`) are gated on
   `SPECIAL_DAYS_LIVE_TESTS=1` and skip by default. Their job is to
   detect query drift: if Wikidata's modeling of the Super Bowl
-  changes such that our SPARQL query no longer returns the right
+  changes such that the SPARQL query no longer returns the right
   items, these tests fail loudly. Run them before cutting a release;
   the weekly live-test workflow runs them on a schedule.
 

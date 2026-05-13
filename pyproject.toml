@@ -33,8 +33,8 @@ classifiers = [
     "Topic :: Office/Business :: Scheduling",
     "Topic :: Software Development :: Libraries :: Python Modules",
 ]
-# Zero runtime dependencies: only the standard library. Anything we add
-# here is something we promise to keep working for the life of the package.
+# Zero runtime dependencies: only the standard library. Anything added
+# here is something I commit to keeping working for the life of the package.
 dependencies = []
 
 [project.optional-dependencies]

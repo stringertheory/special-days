@@ -2,10 +2,10 @@
 
 This module is **not** on the runtime lookup path. It exists for the
 snapshot-build scripts and the opt-in live tests. Users should never
-need to call into it; the wheel ships everything Wikidata told us last
-build.
+need to call into it; the wheel ships whatever Wikidata returned at
+the last build.
 
-The SPARQL Query Results JSON Format we parse is a W3C standard
+The SPARQL Query Results JSON Format parsed below is a W3C standard
 (https://www.w3.org/TR/sparql11-results-json/), so the response shape
 is stable. The query itself is what's most likely to need updating
 over the years if Wikidata's modeling of an event series changes; see
@@ -33,7 +33,7 @@ SPARQL_ENDPOINT = "https://query.wikidata.org/sparql"
 #
 # If you fork this package, change the URL in the user-agent below to
 # point at your fork. Leaving the upstream URL means an abuse complaint
-# about your fork's traffic lands in our inbox, not yours.
+# about your fork's traffic lands in my inbox, not yours.
 USER_AGENT = (
     f"special-days/{__version__} "
     "(+https://github.com/stringertheory/special-days)"
@@ -46,24 +46,25 @@ USER_AGENT = (
 #   P361 - part of
 #   P179 - part of the series
 #
-# We UNION all three because conventions differ across event types and
-# can drift over time. If a future Wikidata reshape breaks this query,
-# update it here and cut a new release.
+# The query UNIONs all three because conventions differ across event
+# types and can drift over time. If a future Wikidata reshape breaks
+# this query, update it here and cut a new release.
 #
 # Wikidata stores P585 ("point in time") with a precision qualifier:
 #   11 = day, 10 = month, 9 = year
 # An upcoming event announced only to the month (e.g. "February 2029")
-# is stored with precision 10 and a placeholder day (YYYY-MM-01). We
-# go through the statement-level path (p:P585 / psv:P585) so we can
-# read wikibase:timePrecision, then filter to day-precision (>=11)
+# is stored with precision 10 and a placeholder day (YYYY-MM-01). The
+# query goes through the statement-level path (p:P585 / psv:P585) to
+# read wikibase:timePrecision, then filters to day-precision (>=11)
 # values only. Without this filter, those placeholders would silently
-# leak into our output as bogus Feb-1 (etc.) dates.
+# leak into results as bogus Feb-1 (etc.) dates.
 #
-# We also filter out statements at deprecated rank. Wikidata uses
+# Statements at deprecated rank are filtered out too. Wikidata uses
 # deprecated rank to mark known-wrong values while preserving them in
 # history; consumers are expected to honor that. Honoring rank means
-# we don't have to maintain event-specific workarounds for individual
-# bad claims -- editors fix it upstream, our query stops returning it.
+# the package doesn't have to maintain event-specific workarounds for
+# individual bad claims -- editors fix it upstream, the query stops
+# returning it.
 EVENT_DATES_QUERY = """\
 SELECT ?item ?itemLabel ?date WHERE {{
   {{ ?item wdt:P31 wd:{qid} . }}
@@ -88,7 +89,7 @@ QID_RE = re.compile(r"^Q[1-9]\d*$")
 
 
 class WikidataUnavailable(Exception):
-    """Raised when we cannot get a usable response from Wikidata."""
+    """Raised when a usable response cannot be obtained from Wikidata."""
 
 
 def sparql_query(query: str, timeout: float = 15) -> dict[str, Any]:
@@ -143,8 +144,8 @@ def parse_xsd_date(value: str) -> date:
 
     Wikidata emits values like ``'2025-02-09T00:00:00Z'``. Historical
     items can have negative years or unusual precision; the SPARQL
-    query filters those out, so we only handle the common modern case
-    here and let anything weird raise ``ValueError``.
+    query filters those out, so this only handles the common modern
+    case and lets anything weird raise ``ValueError``.
     """
     # Strip a trailing Z so fromisoformat (which doesn't accept Z until
     # Python 3.11) can handle older interpreters.

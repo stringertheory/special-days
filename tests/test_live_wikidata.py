@@ -4,7 +4,7 @@ Skipped by default. Enable with:
 
     SPECIAL_DAYS_LIVE_TESTS=1 python -m unittest tests.test_live_wikidata
 
-These verify that our SPARQL query still works against the live
+These verify that the SPARQL query still works against the live
 Wikidata service. If Wikidata reshapes its data (rare, but possible
 over 20 years), these tests will fail loudly and tell you to update
 the query.
@@ -25,22 +25,22 @@ class LiveSuperBowlTests(unittest.TestCase):
     def test_super_bowl_query_returns_known_dates(self):
         result = fetch_event_dates(super_bowl.EVENT.wikidata_qid)
         # Historical facts -- if Wikidata disagrees with them, either
-        # Wikidata is wrong or our query is matching wrong entities.
+        # Wikidata is wrong or the query is matching wrong entities.
         self.assertEqual(result.get(1967), [date(1967, 1, 15)])
         self.assertEqual(result.get(2016), [date(2016, 2, 7)])
         self.assertEqual(result.get(2025), [date(2025, 2, 9)])
 
     def test_super_bowl_query_returns_reasonable_count(self):
         result = fetch_event_dates(super_bowl.EVENT.wikidata_qid)
-        # There have been ~60 Super Bowls. If we get nothing or 1000s,
-        # something's wrong with the query.
+        # There have been ~60 Super Bowls. If the query returns
+        # nothing or 1000s, something's wrong with it.
         self.assertGreater(len(result), 50)
         self.assertLess(len(result), 200)
 
     def test_all_returned_dates_are_sundays(self):
         """Every Super Bowl has been played on a Sunday. A non-Sunday
-        in our results almost always means we matched a Wikidata date
-        with imprecise precision (e.g. 'February 2029' stored as
+        in the result almost always means the query matched a Wikidata
+        date with imprecise precision (e.g. 'February 2029' stored as
         2029-02-01) and didn't filter it out.
         """
         result = fetch_event_dates(super_bowl.EVENT.wikidata_qid)
@@ -63,9 +63,9 @@ class LiveOscarsTests(unittest.TestCase):
 
     def test_oscars_query_has_no_1928_ceremony(self):
         """Q109886 (1st Academy Awards) once carried a spurious
-        1928-05-16 P585 claim that we filtered out at the package
-        level. The bad claim was eventually deleted upstream. This
-        test stays as a regression guard: if it fails, someone
+        1928-05-16 P585 claim that the package filtered out at the
+        package level. The bad claim was eventually deleted upstream.
+        This test stays as a regression guard: if it fails, someone
         re-introduced a 1928 ceremony to Wikidata's Academy Awards
         graph.
         """
@@ -84,7 +84,7 @@ class LiveOscarsTests(unittest.TestCase):
     def test_oscars_query_returns_reasonable_count(self):
         result = fetch_event_dates(oscars.EVENT.wikidata_qid)
         total = sum(len(ds) for ds in result.values())
-        # 97+ ceremonies since 1929. If we get nothing or 1000s,
-        # something's wrong with the query.
+        # 97+ ceremonies since 1929. If the query returns nothing or
+        # 1000s, something's wrong with it.
         self.assertGreater(total, 80)
         self.assertLess(total, 200)

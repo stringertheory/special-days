@@ -3,7 +3,7 @@ name: Live tests (Wikidata)
 # Weekly: hit the real Wikidata endpoint to catch query drift. The
 # refresh-snapshots workflow only runs live tests when the snapshot
 # changes; this one runs them unconditionally so a "no new data, but
-# our query stopped working" regression still surfaces.
+# the query stopped working" regression still surfaces.
 
 on:
   schedule:

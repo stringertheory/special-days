@@ -421,7 +421,7 @@ correct and every boundary
 subclass, and a <code>datetime(2025, 2, 9)</code> hashes differently
 from <code>date(2025, 2, 9)</code> — so membership tests returned False
 against a matching date. <code>holidays.HolidayBase</code> normalizes
-inputs; we now do the same in
+inputs; this package now does the same in
 <code>_EventDict.__contains__/__getitem__/get/get_list</code> and in
 <code>LazyDateMap</code>.</p>
 
@@ -439,7 +439,7 @@ defense in depth.</p>
 
 <h3>Bandit B310 / Ruff S310</h3>
 <p><code>urlopen</code> on a non-pinned scheme is a Bandit/Ruff
-warning by default. Our URL is always
+warning by default. The URL is always
 <code>https://query.wikidata.org/sparql?query=…</code> — there's no
 attacker-controllable scheme — so the warning is a false positive.
 Suppressed with a comment that explains <em>why</em>, not just
@@ -509,7 +509,8 @@ representation; <code>date(year)</code> still gives you the first.</p>
     <tr>
       <td><code>type-check</code> CI job</td>
       <td>The package ships <code>py.typed</code>; downstream type-
-          checked users rely on our annotations. Now <code>mypy</code>
+          checked users rely on the package's annotations. Now
+          <code>mypy</code>
           (default config) is gated. <code>mypy --strict</code> also
           passes — see <code>[tool.mypy] strict = true</code> in
           <code>pyproject.toml</code>.</td>
