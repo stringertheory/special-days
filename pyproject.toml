@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "special-days"
-version = "0.2.0"
+version = "0.2.1"
 description = "Lookup dates for events that cause unusual attendance patterns (Super Bowl, Oscars, ...) using Wikidata as the source of truth."
 readme = "README.md"
 requires-python = ">=3.10"
