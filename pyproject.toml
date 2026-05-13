@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "special-days"
-version = "0.3.0"
+version = "0.3.1"
 description = "Drop-in `holidays`-compatible lookup of special-event dates (Super Bowl, Oscars, ...). Data sourced from Wikidata; offline-only at runtime."
 readme = "README.md"
 requires-python = ">=3.10"
