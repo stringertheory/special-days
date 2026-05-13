@@ -29,7 +29,7 @@ from . import __version__
 SPARQL_ENDPOINT = "https://query.wikidata.org/sparql"
 
 # Wikidata asks API clients to identify themselves so abuse can be
-# diagnosed and contacted: https://meta.wikimedia.org/wiki/User-Agent_policy
+# diagnosed and contacted: https://foundation.wikimedia.org/wiki/Policy:Wikimedia_Foundation_User-Agent_Policy
 #
 # If you fork this package, change the URL in the user-agent below to
 # point at your fork. Leaving the upstream URL means an abuse complaint

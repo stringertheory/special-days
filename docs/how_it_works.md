@@ -267,7 +267,7 @@ The HTTP layer (`sparql_query`) does only what's strictly necessary:
   exception. Callers (the build scripts and live tests) decide what
   to do.
 
-[Wikimedia's policy]: https://meta.wikimedia.org/wiki/User-Agent_policy
+[Wikimedia's policy]: https://foundation.wikimedia.org/wiki/Policy:Wikimedia_Foundation_User-Agent_Policy
 
 `fetch_event_dates(qid)` validates that `qid` matches the
 `Q[1-9]\d*` pattern before interpolating it into the SPARQL string —
@@ -337,7 +337,7 @@ Failure modes:
 network/HTTP/parse errors. The caller decides how to react (keep the
 old snapshot, log, retry, etc.). Be polite to the endpoint: a
 schedule of "every few hours" is plenty; Wikimedia's
-[User-Agent policy](https://meta.wikimedia.org/wiki/User-Agent_policy)
+[User-Agent policy](https://foundation.wikimedia.org/wiki/Policy:Wikimedia_Foundation_User-Agent_Policy)
 expects identification and reasonable rate.
 
 ## Maintenance: regenerating the snapshot
@@ -436,6 +436,6 @@ make test-live
 
 References:
 [SPARQL 1.1 Query Results JSON Format (W3C)](https://www.w3.org/TR/sparql11-results-json/),
-[Wikimedia User-Agent policy](https://meta.wikimedia.org/wiki/User-Agent_policy),
+[Wikimedia User-Agent policy](https://foundation.wikimedia.org/wiki/Policy:Wikimedia_Foundation_User-Agent_Policy),
 [Q32096 (Super Bowl, Wikidata)](https://www.wikidata.org/wiki/Q32096),
 [Q19020 (Academy Awards, Wikidata)](https://www.wikidata.org/wiki/Q19020).
