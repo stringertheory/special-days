@@ -366,7 +366,12 @@ To add, say, the World Series:
 1. Find the Wikidata Q-ID for the series (verify on wikidata.org and
    that the SPARQL query, run in the Wikidata web GUI, returns dates
    at day-precision).
-2. Add a thin per-event module:
+2. Add a thin per-event module. It has two halves: an `Event(...)`
+   configuration object, and a block that binds the module's public
+   names to that event's methods. The bindings are the module's
+   public-API specification; the predicate name (`is_world_series_game`)
+   and class name (`WorldSeries`) are editorial and need to be spelled
+   per event:
 
    ```python
    # src/special_days/world_series.py
