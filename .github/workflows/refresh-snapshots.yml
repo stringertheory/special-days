@@ -3,7 +3,7 @@ name: Refresh snapshots
 # Daily: rebuild the shipped snapshot from live Wikidata. If the diff
 # is non-empty AND live tests pass, open a PR for the maintainer to
 # merge. This is the load-bearing piece that keeps the package's data
-# fresh without anyone having to remember to run `make snapshots-live`.
+# fresh without anyone having to remember to run `make snapshots`.
 
 on:
   schedule:
@@ -25,7 +25,7 @@ jobs:
           cache: pip
       - run: pip install -e ".[dev]"
       - name: Regenerate snapshots from Wikidata
-        run: make snapshots-live
+        run: make snapshots
       - name: Detect change
         id: diff
         run: |

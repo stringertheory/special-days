@@ -52,8 +52,7 @@ src/special_days/
     ├── super_bowl.json  # shipped snapshot
     └── oscars.json      # shipped snapshot
 scripts/
-├── build_super_bowl_snapshot.py
-└── build_oscars_snapshot.py
+└── build_snapshot.py
 examples/
 ├── future_super_bowls.py
 └── by_date.py
@@ -193,24 +192,17 @@ for a user who `pip install`s" are different questions. Running tests
 against the installed package (`make install && make test`) is the
 canonical check.
 
-### Two ways to regenerate
+### Regenerating
 
-`scripts/build_super_bowl_snapshot.py` writes
-`src/special_days/data/super_bowl.json` from one of two sources:
+`scripts/build_snapshot.py <event>` writes
+`src/special_days/data/<event>.json` from the current Wikidata
+response, applying any per-event entries in its `OVERRIDES` dict on
+top. Wikidata is the source of truth; `OVERRIDES` is the escape hatch
+for "Wikidata is wrong about this date and we want to ship a
+correction now." Empty in the steady state.
 
-* `make snapshot-super-bowl` (no `--live`) → the `EMBEDDED` dict in
-  the script. Hand-curated from NFL.com / Wikipedia. **This is the
-  source of truth for the shipped Super Bowl data.** Use it when you
-  want to ship a correction independent of what Wikidata currently
-  says.
-* `make snapshot-super-bowl-live` → fetch from Wikidata. Use this
-  before a release to pick up newly-scheduled future games. Diff the
-  output against the embedded list before committing; if they
-  disagree, decide whose answer to ship.
-
-Oscars uses Wikidata as the primary source; its `EMBEDDED` overlay is
-a sparse list of corrections / gap-fills. See
-`scripts/build_oscars_snapshot.py`.
+`make snapshot-super-bowl`, `make snapshot-oscars`, and `make
+snapshots` (both) are thin wrappers around the script.
 
 ## The Wikidata SPARQL query
 
@@ -299,7 +291,7 @@ making outbound HTTPS requests is a footgun in firewalled or
 sandboxed environments; we don't, unless you ask.
 
 Snapshot-build scripts: only ever invoked manually
-(`make snapshots-live`) or in CI (the scheduled refresh workflow).
+(`make snapshots`) or in CI (the scheduled refresh workflow).
 These do hit Wikidata. They live in `scripts/` and are not on the
 user's import path under any normal installation.
 
@@ -346,14 +338,13 @@ The cron-driven refresh workflow handles the steady state. A human
 maintainer is involved only in three scenarios:
 
 1. **A new game gets officially announced before Wikidata picks it
-   up.** Add the date to the `EMBEDDED` dict at the top of
-   `scripts/build_super_bowl_snapshot.py`, run `make snapshot-super-bowl`
+   up.** Add the date to the relevant entry in `OVERRIDES` at the
+   top of `scripts/build_snapshot.py`, run `make snapshot-<event>`
    to regenerate the JSON, commit both, and `make publish-patch`.
-2. **You want to verify against Wikidata before a release.** Run
-   `make snapshot-super-bowl-live` (or `snapshots-live` to do both
-   events), then `git diff src/special_days/data/`. If the diff is
-   empty, Wikidata agrees with the embedded list. If it shows
-   differences, investigate before committing.
+2. **You want to refresh manually before a release.** Run `make
+   snapshots`, then `git diff src/special_days/data/`. An empty diff
+   means Wikidata agrees with the shipped data; differences should
+   be eyeballed before committing.
 3. **The live tests start failing.** Wikidata has probably reshaped
    its data model for that event. The first place to look is
    `EVENT_DATES_QUERY` in `wikidata.py`. After updating, cut a new
@@ -395,12 +386,20 @@ To add, say, the World Series:
    WorldSeries = EVENT.cls()
    ```
 
-3. Build a snapshot: add
-   `scripts/build_world_series_snapshot.py` modelled on the existing
-   scripts. It calls
-   `fetch_event_dates(world_series.EVENT.wikidata_qid)`; no edit to
-   `wikidata.py` is needed because the SPARQL template is already
-   QID-parameterized. Run it; commit `data/world_series.json`. The
+3. Register the event with the snapshot builder. Add one row to
+   `OVERRIDES` in `scripts/build_snapshot.py`:
+
+   ```python
+   OVERRIDES = {
+       "super_bowl": {},
+       "oscars": {},
+       "world_series": {},   # new
+   }
+   ```
+
+   Then `make snapshot-world-series` (or add it to the `snapshots`
+   aggregate target in the Makefile) writes
+   `src/special_days/data/world_series.json`. The
    `package-data` glob (`data/*.json`) already picks it up.
 4. Register the class in `__init__.py`: add
    `"world_series": WorldSeries` to `EVENT_REGISTRY` and re-export

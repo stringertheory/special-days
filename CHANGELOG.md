@@ -6,6 +6,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Changed
+
+- The two per-event build scripts (`build_super_bowl_snapshot.py`,
+  `build_oscars_snapshot.py`) collapse into one generic
+  `scripts/build_snapshot.py` that takes the event name as an
+  argument. The `--live` distinction and the Super Bowl
+  hand-curated full-list `EMBEDDED` dict go away; Wikidata is the
+  sole source of truth, and the script's `OVERRIDES` dict is the
+  documented escape hatch for shipping corrections. Maintainers run
+  `make snapshot-super-bowl`, `make snapshot-oscars`, or `make
+  snapshots`; the `*-live` Make targets have been removed (everything
+  is live now).
+
 ### Added
 
 - `Event.fetch_from_wikidata()` — opt-in method that returns the

@@ -24,8 +24,9 @@ about *how to operate the codebase as an agent*, not *what it does*.
   internal reference is the lazy import inside
   `Event.fetch_from_wikidata`.
 * Snapshot JSON files (`src/special_days/data/*.json`) are
-  generated. Never edit by hand. Regenerate via `make snapshots` (use
-  embedded list) or `make snapshots-live` (fetch Wikidata).
+  generated. Never edit by hand. Regenerate via `make snapshots`
+  (Wikidata is the source of truth; sparse per-event corrections live
+  in `OVERRIDES` in `scripts/build_snapshot.py`).
 
 ## Commands you should know
 
@@ -35,8 +36,7 @@ about *how to operate the codebase as an agent*, not *what it does*.
 | Test (incl. live Wikidata)        | `make test-live` |
 | Lint + format check               | `make lint` |
 | Type-check                        | `.venv/bin/python -m mypy src/special_days` |
-| Regenerate snapshots from embedded | `make snapshots` |
-| Regenerate snapshots from live    | `make snapshots-live` |
+| Regenerate snapshots from Wikidata | `make snapshots` |
 | Cut a patch release (humans only) | `make publish-patch` |
 
 ## Tasks that suit agents

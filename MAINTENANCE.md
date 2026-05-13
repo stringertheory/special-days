@@ -8,7 +8,7 @@ should look at on what cadence.
 
 | Cadence    | Action                                                                                     |
 |------------|--------------------------------------------------------------------------------------------|
-| Daily      | `refresh-snapshots.yml` runs `make snapshots-live`. If the snapshot diff is non-empty and live tests pass, opens a PR on branch `bot/refresh-snapshots`. |
+| Daily      | `refresh-snapshots.yml` runs `make snapshots`. If the snapshot diff is non-empty and live tests pass, opens a PR on branch `bot/refresh-snapshots`. |
 | Weekly     | `live-tests.yml` runs `make test-live` against the real Wikidata endpoint. Catches query drift before users do. |
 | Per PR     | `ci.yml` runs the unit tests on every supported Python on Linux + macOS/Windows on the oldest supported Python, plus lint and `type-check`. |
 | Per tag    | `release.yml` builds + publishes to PyPI via OIDC Trusted Publishing. |
