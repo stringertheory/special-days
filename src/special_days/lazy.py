@@ -12,29 +12,29 @@ from __future__ import annotations
 from collections.abc import Iterator, Mapping
 from datetime import date
 
-from .event import _normalize_date
+from .event import normalize_date
 
 
 class LazyDateMap:
     """Read-only union view; lookups walk sources in order."""
 
     def __init__(self, *sources: Mapping[date, str]) -> None:
-        self._sources: tuple[Mapping[date, str], ...] = sources
+        self.sources: tuple[Mapping[date, str], ...] = sources
 
     def __contains__(self, key: object) -> bool:
-        norm = _normalize_date(key)
-        return any(norm in s for s in self._sources)
+        norm = normalize_date(key)
+        return any(norm in s for s in self.sources)
 
     def __getitem__(self, key: date) -> str:
-        norm = _normalize_date(key)
-        for s in self._sources:
+        norm = normalize_date(key)
+        for s in self.sources:
             if norm in s:
                 return s[norm]  # type: ignore[index]
         raise KeyError(key)
 
     def get(self, key: date, default: str | None = None) -> str | None:
-        norm = _normalize_date(key)
-        for s in self._sources:
+        norm = normalize_date(key)
+        for s in self.sources:
             if norm in s:
                 return s[norm]  # type: ignore[index]
         return default
@@ -45,9 +45,9 @@ class LazyDateMap:
         semicolon-joined values get split correctly), otherwise falls
         back to the source's value.
         """
-        norm = _normalize_date(key)
+        norm = normalize_date(key)
         out: list[str] = []
-        for s in self._sources:
+        for s in self.sources:
             if hasattr(s, "get_list"):
                 out.extend(s.get_list(norm))
             elif norm in s:
@@ -56,7 +56,7 @@ class LazyDateMap:
 
     def __iter__(self) -> Iterator[date]:
         seen: set[date] = set()
-        for s in self._sources:
+        for s in self.sources:
             for k in s:
                 if k not in seen:
                     seen.add(k)

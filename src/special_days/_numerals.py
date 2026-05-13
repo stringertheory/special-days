@@ -7,7 +7,7 @@ not these helpers directly.
 
 from __future__ import annotations
 
-_ROMAN_TABLE: list[tuple[int, str]] = [
+ROMAN_TABLE: list[tuple[int, str]] = [
     (1000, "M"),
     (900, "CM"),
     (500, "D"),
@@ -29,7 +29,7 @@ def roman(n: int) -> str:
     if n < 1 or n > 3999:
         raise ValueError(f"roman({n}) out of supported range 1..3999")
     out: list[str] = []
-    for value, sym in _ROMAN_TABLE:
+    for value, sym in ROMAN_TABLE:
         while n >= value:
             out.append(sym)
             n -= value

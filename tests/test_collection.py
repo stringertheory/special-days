@@ -128,11 +128,11 @@ class LazyDateMapComposesLazySourcesTests(TestCase):
 class SpecialDaysTests(TestCase):
     def test_default_constructor_uses_full_registry(self):
         sd = SpecialDays()
-        self.assertEqual(len(sd._sources), len(EVENT_REGISTRY))
+        self.assertEqual(len(sd.sources), len(EVENT_REGISTRY))
 
     def test_accepts_event_strings(self):
         sd = SpecialDays(events=["super_bowl"])
-        self.assertIsInstance(sd._sources[0], SuperBowl)
+        self.assertIsInstance(sd.sources[0], SuperBowl)
 
     def test_unknown_string_raises_valueerror_with_known_list(self):
         with self.assertRaises(ValueError) as ctx:
@@ -142,12 +142,12 @@ class SpecialDaysTests(TestCase):
 
     def test_accepts_event_classes(self):
         sd = SpecialDays(events=[SuperBowl])
-        self.assertIsInstance(sd._sources[0], SuperBowl)
+        self.assertIsInstance(sd.sources[0], SuperBowl)
 
     def test_accepts_already_instantiated_events(self):
         sb = SuperBowl()
         sd = SpecialDays(events=[sb])
-        self.assertIs(sd._sources[0], sb)
+        self.assertIs(sd.sources[0], sb)
 
     def test_lookups_flow_through_to_events(self):
         sd = SpecialDays(events=[SuperBowl])
@@ -162,8 +162,8 @@ class SpecialDaysTests(TestCase):
 
     def test_mixed_inputs(self):
         sd = SpecialDays(events=["super_bowl", SuperBowl, SuperBowl()])
-        self.assertEqual(len(sd._sources), 3)
-        for src in sd._sources:
+        self.assertEqual(len(sd.sources), 3)
+        for src in sd.sources:
             self.assertIsInstance(src, SuperBowl)
 
 

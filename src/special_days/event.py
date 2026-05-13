@@ -23,7 +23,7 @@ from collections.abc import Callable, Iterable
 from importlib import resources
 
 
-def _normalize_date(key: object) -> object:
+def normalize_date(key: object) -> object:
     """Coerce a ``datetime.datetime`` to its ``date`` part; pass
     everything else through unchanged. Mirrors ``holidays.HolidayBase``.
     """
@@ -42,7 +42,7 @@ def _check_year(year: object) -> int:
 class EventDict(dict[datetime.date, str]):
     """Date-keyed dict for one event series, eagerly populated.
 
-    Subclasses bind to an :class:`Event` via the ``_event`` class
+    Subclasses bind to an :class:`Event` via the ``event`` class
     attribute set by :meth:`Event.cls`. Behaves like a plain
     ``dict[date, str]`` plus:
 
@@ -53,7 +53,7 @@ class EventDict(dict[datetime.date, str]):
     * an optional ``years=`` filter at construction time.
     """
 
-    _event: Event  # set by Event.cls()
+    event: Event  # set by Event.cls()
 
     def __init__(
         self,
@@ -64,21 +64,21 @@ class EventDict(dict[datetime.date, str]):
         if isinstance(years, int):
             years = [years]
         keep = {_check_year(y) for y in years} if years is not None else None
-        for year, ds in self._event.all_known_full().items():
+        for year, ds in self.event.all_known_full().items():
             if keep is not None and year not in keep:
                 continue
             for d in ds:
-                self[d] = self._event.label_for(d, label_with_edition)
+                self[d] = self.event.label_for(d, label_with_edition)
 
     @property
     def name(self) -> str:
-        return self._event.name
+        return self.event.name
 
     def __contains__(self, key: object) -> bool:
-        return super().__contains__(_normalize_date(key))
+        return super().__contains__(normalize_date(key))
 
     def __getitem__(self, key: datetime.date) -> str:
-        norm = _normalize_date(key)
+        norm = normalize_date(key)
         if not isinstance(norm, datetime.date):
             raise KeyError(key)
         return super().__getitem__(norm)
@@ -86,7 +86,7 @@ class EventDict(dict[datetime.date, str]):
     def get(  # type: ignore[override]
         self, key: object, default: str | None = None
     ) -> str | None:
-        norm = _normalize_date(key)
+        norm = normalize_date(key)
         if not isinstance(norm, datetime.date):
             return default
         return super().get(norm, default)
@@ -96,7 +96,7 @@ class EventDict(dict[datetime.date, str]):
         one label per date; :class:`LazyDateMap` uses this to merge
         labels across multiple sources.
         """
-        norm = _normalize_date(key)
+        norm = normalize_date(key)
         if not isinstance(norm, datetime.date) or norm not in self:
             return []
         return [super().__getitem__(norm)]
@@ -199,7 +199,7 @@ class Event:
         class _Specific(EventDict):
             """Date-keyed lookup; see ``special_days`` README."""
 
-        _Specific._event = self
+        _Specific.event = self
         _Specific.__name__ = self.name.replace(" ", "")
         _Specific.__qualname__ = _Specific.__name__
         return _Specific

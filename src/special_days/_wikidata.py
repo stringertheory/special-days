@@ -34,7 +34,7 @@ SPARQL_ENDPOINT = "https://query.wikidata.org/sparql"
 # If you fork this package, change the URL in the user-agent below to
 # point at your fork. Leaving the upstream URL means an abuse complaint
 # about your fork's traffic lands in our inbox, not yours.
-_USER_AGENT = (
+USER_AGENT = (
     f"special-days/{__version__} "
     "(+https://github.com/stringertheory/special-days)"
 )
@@ -84,7 +84,7 @@ ORDER BY ?date
 """
 
 # Wikidata QIDs are "Q" followed by a positive integer.
-_QID_RE = re.compile(r"^Q[1-9]\d*$")
+QID_RE = re.compile(r"^Q[1-9]\d*$")
 
 
 class WikidataUnavailable(Exception):
@@ -99,7 +99,7 @@ def sparql_query(query: str, timeout: float = 15) -> dict[str, Any]:
     url = SPARQL_ENDPOINT + "?" + urlencode({"query": query})
     request = Request(url)
     request.add_header("Accept", "application/sparql-results+json")
-    request.add_header("User-Agent", _USER_AGENT)
+    request.add_header("User-Agent", USER_AGENT)
     try:
         # The URL is built from a hardcoded https endpoint plus a
         # urlencoded SPARQL query; no caller-controlled scheme is
@@ -159,7 +159,7 @@ def fetch_event_dates(series_qid: str) -> dict[int, list[date]]:
     ``series_qid`` isn't a syntactically valid QID and
     ``WikidataUnavailable`` on network/parse failure.
     """
-    if not _QID_RE.match(series_qid):
+    if not QID_RE.match(series_qid):
         raise ValueError(f"invalid Wikidata QID: {series_qid!r}")
     query = EVENT_DATES_QUERY.format(qid=series_qid)
     return parse_event_results(sparql_query(query))
