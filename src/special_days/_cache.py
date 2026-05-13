@@ -37,13 +37,25 @@ def read_cache(path: str | os.PathLike[str]) -> dict[int, date]:
 
 
 def write_cache(path: str | os.PathLike[str], data: dict[int, date]) -> None:
-    """Write {year: date} to a cache file, creating parent dirs."""
-    path = Path(path)
-    path.parent.mkdir(parents=True, exist_ok=True)
-    payload = {str(year): d.isoformat() for year, d in data.items()}
-    path.write_text(
-        json.dumps(payload, indent=2, sort_keys=True), encoding="utf-8"
-    )
+    """Write {year: date} to a cache file, creating parent dirs.
+
+    Best-effort: any OSError (no permission, read-only filesystem,
+    no space, ...) is swallowed. The cache is an optimization, not a
+    correctness requirement -- the caller has already computed the
+    data and is about to return it; an unwritable cache should cost
+    a re-fetch next time, not crash the lookup. Mirrors the
+    permissive behavior of read_cache.
+    """
+    try:
+        path = Path(path)
+        path.parent.mkdir(parents=True, exist_ok=True)
+        payload = {str(year): d.isoformat() for year, d in data.items()}
+        path.write_text(
+            json.dumps(payload, indent=2, sort_keys=True),
+            encoding="utf-8",
+        )
+    except OSError:
+        pass
 
 
 def default_cache_dir() -> Path:
