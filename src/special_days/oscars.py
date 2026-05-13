@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import datetime
 
+from ._numerals import ordinal
 from .event import Event
 
 # Most ceremony numbers follow ``year - 1928`` -- the 1st Academy
@@ -43,18 +44,9 @@ _OSCARS_EDITIONS: dict[datetime.date, int] = {
 }
 
 
-def _ordinal(n: int) -> str:
-    """English ordinal suffix: 1 -> '1st', 22 -> '22nd', 113 -> '113th'."""
-    if 10 <= n % 100 <= 20:
-        suffix = "th"
-    else:
-        suffix = {1: "st", 2: "nd", 3: "rd"}.get(n % 10, "th")
-    return f"{n}{suffix}"
-
-
 def _edition_label(d: datetime.date) -> str:
     edition = _OSCARS_EDITIONS.get(d, d.year - 1928)
-    return f"{_ordinal(edition)} Academy Awards"
+    return f"{ordinal(edition)} Academy Awards"
 
 
 EVENT = Event(

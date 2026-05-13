@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import datetime
 
+from ._numerals import roman
 from .event import Event
 
 # Super Bowl I was played in 1967. The edition number for a given year
@@ -28,36 +29,9 @@ _SB_OVERRIDES: dict[int, str] = {
 }
 
 
-def _roman(n: int) -> str:
-    """Standard Roman numerals 1..3999."""
-    if n < 1 or n > 3999:
-        raise ValueError(f"_roman({n}) out of supported range 1..3999")
-    table = [
-        (1000, "M"),
-        (900, "CM"),
-        (500, "D"),
-        (400, "CD"),
-        (100, "C"),
-        (90, "XC"),
-        (50, "L"),
-        (40, "XL"),
-        (10, "X"),
-        (9, "IX"),
-        (5, "V"),
-        (4, "IV"),
-        (1, "I"),
-    ]
-    out: list[str] = []
-    for value, sym in table:
-        while n >= value:
-            out.append(sym)
-            n -= value
-    return "".join(out)
-
-
 def _edition_label(d: datetime.date) -> str:
     n = d.year - _SB_OFFSET
-    return _SB_OVERRIDES.get(n, f"Super Bowl {_roman(n)}")
+    return _SB_OVERRIDES.get(n, f"Super Bowl {roman(n)}")
 
 
 EVENT = Event(

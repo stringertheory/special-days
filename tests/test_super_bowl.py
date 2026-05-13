@@ -142,13 +142,13 @@ class SuperBowlClassTests(TestCase):
 
 
 class RomanNumeralEdgeCaseTests(TestCase):
-    """``_roman`` must use standard subtractive notation through 3999."""
+    """``roman`` must use standard subtractive notation through 3999."""
 
     def test_subtractive_notation_used_above_399(self):
-        from special_days.super_bowl import _roman
+        from special_days._numerals import roman
 
-        self.assertEqual(_roman(400), "CD")
-        self.assertEqual(_roman(500), "D")
-        self.assertEqual(_roman(900), "CM")
-        self.assertEqual(_roman(1000), "M")
-        self.assertEqual(_roman(3999), "MMMCMXCIX")
+        self.assertEqual(roman(400), "CD")
+        self.assertEqual(roman(500), "D")
+        self.assertEqual(roman(900), "CM")
+        self.assertEqual(roman(1000), "M")
+        self.assertEqual(roman(3999), "MMMCMXCIX")
