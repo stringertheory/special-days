@@ -46,6 +46,12 @@ _USER_AGENT = (
 # read wikibase:timePrecision, then filter to day-precision (>=11)
 # values only. Without this filter, those placeholders would silently
 # leak into our output as bogus Feb-1 (etc.) dates.
+#
+# We also filter out statements at deprecated rank. Wikidata uses
+# deprecated rank to mark known-wrong values while preserving them in
+# history; consumers are expected to honor that. Honoring rank means
+# we don't have to maintain event-specific workarounds for individual
+# bad claims -- editors fix it upstream, our query stops returning it.
 EVENT_DATES_QUERY = """\
 SELECT ?item ?itemLabel ?date WHERE {{
   {{ ?item wdt:P31 wd:{qid} . }}
@@ -57,7 +63,9 @@ SELECT ?item ?itemLabel ?date WHERE {{
   ?statement psv:P585 ?dateValue .
   ?dateValue wikibase:timeValue ?date .
   ?dateValue wikibase:timePrecision ?precision .
+  ?statement wikibase:rank ?rank .
   FILTER(?precision >= 11)
+  FILTER(?rank != wikibase:DeprecatedRank)
   SERVICE wikibase:label {{ bd:serviceParam wikibase:language "en". }}
 }}
 ORDER BY ?date
@@ -142,11 +150,4 @@ def fetch_super_bowl_dates() -> dict[int, date]:
 def fetch_oscars_dates() -> dict[int, date]:
     """Convenience wrapper: all known Academy Awards ceremony dates."""
     # Q19020 is the Wikidata item for "Academy Awards".
-    data = fetch_event_dates("Q19020")
-    # Wikidata's Q109886 ("1st Academy Awards") has two P585 statements --
-    # 1928-05-16 and 1929-05-16 -- both at day precision. The real
-    # ceremony was 1929-05-16 (per Wikipedia, the Academy, and
-    # contemporaneous press coverage); drop the 1928 phantom so the
-    # snapshot doesn't gain a year that never had a ceremony.
-    data.pop(1928, None)
-    return data
+    return fetch_event_dates("Q19020")

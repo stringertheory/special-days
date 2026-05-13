@@ -56,11 +56,14 @@ class LiveOscarsTests(unittest.TestCase):
         self.assertEqual(result.get(2024), date(2024, 3, 10))  # 96th
         self.assertEqual(result.get(2025), date(2025, 3, 2))  # 97th
 
-    def test_oscars_query_drops_1928_phantom(self):
-        """Wikidata's Q109886 carries a spurious 1928-05-16 P585 claim;
-        fetch_oscars_dates() filters it out. If this test fails, either
-        the bad claim was fixed upstream (great -- we can drop the
-        workaround) or the workaround is broken.
+    def test_oscars_query_has_no_1928_ceremony(self):
+        """Q109886 (1st Academy Awards) once carried a spurious
+        1928-05-16 P585 claim that we filtered out at the
+        package level. The bad claim was eventually deleted upstream.
+        This test stays as a regression guard: if it fails, someone
+        re-introduced a 1928 ceremony to Wikidata's Academy Awards
+        graph, which would mean either vandalism or a misunderstanding
+        of when the 1st ceremony actually took place (May 16, 1929).
         """
         result = fetch_oscars_dates()
         self.assertNotIn(1928, result)

@@ -189,3 +189,19 @@ class QueryFiltersDatePrecisionTests(TestCase):
         # test resilient to formatting / variable-name changes.
         self.assertIn("timePrecision", url)
         self.assertIn("11", url)
+
+    def test_query_excludes_deprecated_rank(self):
+        """Wikidata's deprecated-rank mechanism is the canonical way
+        for editors to mark a known-wrong value while keeping it in
+        history. Consumers are expected to honor that, and doing so
+        generalizes per-event workarounds away.
+        """
+        body = json.dumps(
+            {"head": {"vars": []}, "results": {"bindings": []}}
+        ).encode()
+        opener = _mock_urlopen_returning(body)
+        with mock.patch("special_days._wikidata.urlopen", opener):
+            fetch_event_dates("Q32096")
+        url = opener.call_args[0][0].full_url
+        self.assertIn("rank", url)
+        self.assertIn("DeprecatedRank", url)
