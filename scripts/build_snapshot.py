@@ -37,7 +37,9 @@ EVENTS: dict[str, Event] = {
 # Populate when Wikidata is wrong (vandalism, lag, transcription
 # error) and you want to ship a correction; remove once Wikidata
 # catches up. Events without corrections don't need a row here.
-OVERRIDES: dict[str, dict[int, list[date]]] = {}
+OVERRIDES: dict[str, dict[int, list[date]]] = {
+    # "super_bowl": {2027: [date(2027, 2, 14)]},
+}
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 
