@@ -11,16 +11,27 @@ Sparse overrides live in :data:`OVERRIDES` below. Add an entry when
 Wikidata is wrong (vandalism, lag, transcription error) and you want
 to ship a correction; remove it once Wikidata catches up. Empty in the
 steady state.
+
+Run from a checkout that has ``special-days`` installed (``make
+install`` puts an editable install into ``.venv``; the Makefile's
+``snapshot-*`` targets use that interpreter).
 """
 
 from __future__ import annotations
 
 import argparse
-import importlib
 import json
-import sys
 from datetime import date
 from pathlib import Path
+
+from special_days import oscars, super_bowl
+from special_days.event import Event
+from special_days.wikidata import fetch_event_dates
+
+EVENTS: dict[str, Event] = {
+    "super_bowl": super_bowl.EVENT,
+    "oscars": oscars.EVENT,
+}
 
 # Sparse {event_name: {year: [date, ...]}} overrides merged on top of
 # the Wikidata fetch. Empty values mean "trust Wikidata."
@@ -45,7 +56,7 @@ def merge(
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
-        "event", choices=sorted(OVERRIDES), help="event module to refresh"
+        "event", choices=sorted(EVENTS), help="event module to refresh"
     )
     parser.add_argument(
         "--out",
@@ -54,13 +65,8 @@ def main() -> None:
     )
     args = parser.parse_args()
 
-    # Make the package importable from a non-installed checkout.
-    sys.path.insert(0, str(REPO_ROOT / "src"))
-    mod = importlib.import_module(f"special_days.{args.event}")
-    from special_days.wikidata import fetch_event_dates
-
     data = merge(
-        fetch_event_dates(mod.EVENT.wikidata_qid),
+        fetch_event_dates(EVENTS[args.event].wikidata_qid),
         OVERRIDES[args.event],
     )
 
