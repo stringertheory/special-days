@@ -22,6 +22,8 @@ import json
 from collections.abc import Callable, Iterable
 from importlib import resources
 
+from .wikidata import fetch_event_dates
+
 
 def normalize_date(key: object) -> object:
     """Coerce a ``datetime.datetime`` to its ``date`` part; pass
@@ -207,10 +209,6 @@ class Event:
         explicit opt-in. See ``docs/how_it_works.md`` for the
         runtime-refresh recipe.
         """
-        # Lazy import: keeps `import special_days` from pulling in
-        # urllib unless the user actually asks for a fetch.
-        from .wikidata import fetch_event_dates
-
         return fetch_event_dates(self.wikidata_qid)
 
     # --- date-keyed (holidays-compatible) class API -----------------------
