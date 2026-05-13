@@ -355,6 +355,11 @@ maintainer is involved only in three scenarios:
 To add, say, the Kentucky Derby (one race per year, ~150 years of
 data, stable Wikidata representation — a typical example):
 
+> Why not just compute "first Saturday in May"? WWII pushed the
+> 1945 race to June 9, COVID pushed the 2020 race to September 5,
+> and the 1870s–80s Derbies were typically held on weekdays. Rules
+> don't capture history; snapshots do.
+
 1. Find the Wikidata Q-ID for the series (verify on wikidata.org and
    that the SPARQL query, run in the Wikidata web GUI, returns dates
    at day-precision).
