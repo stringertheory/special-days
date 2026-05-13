@@ -418,10 +418,11 @@ three gives the query the best chance of surviving a re-modeling.</p>
 announced only down to the month (e.g. "February 2029") gets stored
 with precision 10 and a placeholder day of <code>YYYY-MM-01</code>. The
 <code>FILTER(?precision &gt;= 11)</code> excludes those placeholders so
-they don't silently leak into results as bogus Feb-1 dates. (This bug
-existed in v0.1.0 and was fixed in v0.2.0 — see
-<code>test_live_wikidata.test_all_returned_dates_are_sundays</code>,
-which would catch the regression.)</p>
+they don't silently leak into results as bogus Feb-1 dates. A live
+test (<code>test_live_wikidata.test_all_returned_dates_are_sundays</code>)
+would catch the regression — every Super Bowl has been played on a
+Sunday, so a non-Sunday result on a date-precision query is a strong
+signal a precision-10 placeholder slipped through.</p>
 <p>The HTTP layer (<code>sparql_query</code>) does only what's strictly
 necessary:</p>
 <ul>

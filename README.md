@@ -11,7 +11,7 @@ Zero runtime dependencies — only the Python standard library.
 
 ## Status
 
-Alpha. Currently supports: Super Bowl, Academy Awards (Oscars). More events to come.
+Beta. Currently supports: Super Bowl, Academy Awards (Oscars). More events to come.
 
 ## Install
 
