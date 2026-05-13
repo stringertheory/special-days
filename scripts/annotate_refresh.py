@@ -180,6 +180,20 @@ def main() -> None:
         "indicate Wikidata vandalism. Click any Wikidata link above and "
         "the **History** tab to see who last edited that item and when."
     )
+    print()
+    print("## To publish after merging")
+    print()
+    print("```bash")
+    print("git pull && make publish-patch")
+    print("```")
+    print()
+    print(
+        "Bumps the patch version, commits, tags, pushes; the tag push "
+        "triggers `release.yml`, which builds and OIDC-publishes to "
+        "[PyPI](https://pypi.org/project/special-days/) within ~60s. "
+        "Watch the release run at "
+        "<https://github.com/stringertheory/special-days/actions/workflows/release.yml>."
+    )
 
 
 if __name__ == "__main__":
