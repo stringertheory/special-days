@@ -24,14 +24,8 @@ from pathlib import Path
 
 # Sparse overrides applied on top of live Wikidata data when --live is
 # used. Add an entry here when Wikidata is missing or wrong; remove it
-# once Wikidata catches up.
-EMBEDDED: dict[int, date] = {
-    # 99th + 100th Oscars: announced by the Academy in 2025 but not yet
-    # present in Wikidata as of 2026-05.
-    # https://press.oscars.org/news/academy-and-abc-announce-show-dates-99th-and-100th-oscarsr
-    2027: date(2027, 3, 14),  # 99th
-    2028: date(2028, 3, 5),  # 100th
-}
+# once Wikidata catches up. Empty in the steady state.
+EMBEDDED: dict[int, date] = {}
 
 
 def main():
