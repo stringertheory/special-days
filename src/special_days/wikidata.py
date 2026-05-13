@@ -122,34 +122,24 @@ def parse_event_results(results: dict[str, Any]) -> dict[int, list[date]]:
 
     Multiple dates in the same calendar year are preserved (e.g. the
     2nd and 3rd Academy Awards both in 1930). Within a year, dates are
-    sorted ascending and de-duplicated.
+    sorted ascending and de-duplicated. Bindings whose date literal
+    can't be parsed are skipped.
     """
     out: dict[int, set[date]] = {}
     for binding in results.get("results", {}).get("bindings", []):
         raw = binding.get("date", {}).get("value")
         if not raw:
             continue
+        # Wikidata emits xsd:dateTime literals like '2025-02-09T00:00:00Z'.
+        # datetime.fromisoformat didn't accept a trailing 'Z' until 3.11.
+        if raw.endswith("Z"):
+            raw = raw[:-1] + "+00:00"
         try:
-            d = _parse_xsd_date(raw)
+            d = datetime.fromisoformat(raw).date()
         except ValueError:
             continue
         out.setdefault(d.year, set()).add(d)
     return {y: sorted(ds) for y, ds in out.items()}
-
-
-def _parse_xsd_date(value: str) -> date:
-    """Parse a Wikidata xsd:dateTime literal into a ``date``.
-
-    Wikidata emits values like '2025-02-09T00:00:00Z'. Historical items
-    can have negative years or unusual precision; the SPARQL query
-    filters those out, so we only handle the common modern case here
-    and let anything weird raise ValueError.
-    """
-    # Strip a trailing Z so fromisoformat (which doesn't accept Z until
-    # Python 3.11) can handle older interpreters.
-    if value.endswith("Z"):
-        value = value[:-1] + "+00:00"
-    return datetime.fromisoformat(value).date()
 
 
 def fetch_event_dates(series_qid: str) -> dict[int, list[date]]:
