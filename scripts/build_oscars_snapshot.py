@@ -60,9 +60,10 @@ def main() -> None:
 
     if args.live:
         sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
-        from special_days._wikidata import fetch_oscars_dates
+        from special_days._wikidata import fetch_event_dates
+        from special_days.oscars import EVENT
 
-        data = _merge(fetch_oscars_dates(), EMBEDDED)
+        data = _merge(fetch_event_dates(EVENT.wikidata_qid), EMBEDDED)
     elif EMBEDDED:
         data = EMBEDDED
     else:

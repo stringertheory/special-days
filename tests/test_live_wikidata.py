@@ -14,7 +14,8 @@ import os
 import unittest
 from datetime import date
 
-from special_days._wikidata import fetch_oscars_dates, fetch_super_bowl_dates
+from special_days import oscars, super_bowl
+from special_days._wikidata import fetch_event_dates
 
 LIVE = os.environ.get("SPECIAL_DAYS_LIVE_TESTS") == "1"
 
@@ -22,7 +23,7 @@ LIVE = os.environ.get("SPECIAL_DAYS_LIVE_TESTS") == "1"
 @unittest.skipUnless(LIVE, "Set SPECIAL_DAYS_LIVE_TESTS=1 to enable.")
 class LiveSuperBowlTests(unittest.TestCase):
     def test_super_bowl_query_returns_known_dates(self):
-        result = fetch_super_bowl_dates()
+        result = fetch_event_dates(super_bowl.EVENT.wikidata_qid)
         # Historical facts -- if Wikidata disagrees with them, either
         # Wikidata is wrong or our query is matching wrong entities.
         self.assertEqual(result.get(1967), [date(1967, 1, 15)])
@@ -30,7 +31,7 @@ class LiveSuperBowlTests(unittest.TestCase):
         self.assertEqual(result.get(2025), [date(2025, 2, 9)])
 
     def test_super_bowl_query_returns_reasonable_count(self):
-        result = fetch_super_bowl_dates()
+        result = fetch_event_dates(super_bowl.EVENT.wikidata_qid)
         # There have been ~60 Super Bowls. If we get nothing or 1000s,
         # something's wrong with the query.
         self.assertGreater(len(result), 50)
@@ -42,7 +43,7 @@ class LiveSuperBowlTests(unittest.TestCase):
         with imprecise precision (e.g. 'February 2029' stored as
         2029-02-01) and didn't filter it out.
         """
-        result = fetch_super_bowl_dates()
+        result = fetch_event_dates(super_bowl.EVENT.wikidata_qid)
         non_sundays = {
             y: ds
             for y, ds in result.items()
@@ -54,7 +55,7 @@ class LiveSuperBowlTests(unittest.TestCase):
 @unittest.skipUnless(LIVE, "Set SPECIAL_DAYS_LIVE_TESTS=1 to enable.")
 class LiveOscarsTests(unittest.TestCase):
     def test_oscars_query_returns_known_dates(self):
-        result = fetch_oscars_dates()
+        result = fetch_event_dates(oscars.EVENT.wikidata_qid)
         # Modern, easily-verifiable ceremony dates.
         self.assertEqual(result.get(1929), [date(1929, 5, 16)])  # 1st
         self.assertEqual(result.get(2024), [date(2024, 3, 10)])  # 96th
@@ -68,21 +69,20 @@ class LiveOscarsTests(unittest.TestCase):
         re-introduced a 1928 ceremony to Wikidata's Academy Awards
         graph.
         """
-        result = fetch_oscars_dates()
+        result = fetch_event_dates(oscars.EVENT.wikidata_qid)
         self.assertNotIn(1928, result)
 
     def test_oscars_query_includes_both_1930_ceremonies(self):
         """1930 had two ceremonies: the 2nd on April 3 and the 3rd on
-        November 5. Both should come back from the live query; the
-        {year: list[date]} shape lets us represent both.
+        November 5. Both should come back from the live query.
         """
-        result = fetch_oscars_dates()
+        result = fetch_event_dates(oscars.EVENT.wikidata_qid)
         self.assertIn(1930, result)
         self.assertIn(date(1930, 4, 3), result[1930])
         self.assertIn(date(1930, 11, 5), result[1930])
 
     def test_oscars_query_returns_reasonable_count(self):
-        result = fetch_oscars_dates()
+        result = fetch_event_dates(oscars.EVENT.wikidata_qid)
         total = sum(len(ds) for ds in result.values())
         # 97+ ceremonies since 1929. If we get nothing or 1000s,
         # something's wrong with the query.

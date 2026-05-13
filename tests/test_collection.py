@@ -10,14 +10,14 @@ from special_days import (
     Oscars,
     SpecialDays,
     SuperBowl,
-    _lazy,
+    lazy,
     union,
 )
 
 
 def load_tests(loader, tests, ignore):
-    """Run doctests in special_days._lazy alongside the regular suite."""
-    tests.addTests(doctest.DocTestSuite(_lazy))
+    """Run doctests in special_days.lazy alongside the regular suite."""
+    tests.addTests(doctest.DocTestSuite(lazy))
     return tests
 
 
@@ -101,19 +101,28 @@ class UnionFunctionTests(TestCase):
         self.assertIn(date(2025, 7, 4), m)
 
 
-class LazyDateMapPreservesLazinessTests(TestCase):
-    """Membership queries must not force eager population of event sources."""
+class LazyDateMapComposesLazySourcesTests(TestCase):
+    """A source's iteration is not forced; LazyDateMap mirrors whatever
+    the source decides to expose via ``__iter__``. This matters for
+    rule-driven sources like ``holidays.HolidayBase`` that only yield
+    years that have been touched.
+    """
 
-    def test_in_only_loads_year_in_question(self):
-        sb = SuperBowl()
-        m = LazyDateMap(sb)
-        _ = date(2025, 2, 9) in m
-        self.assertEqual(set(sb), {date(2025, 2, 9)})  # 2025 loaded
+    def test_iteration_only_yields_what_sources_expose(self):
+        emitted: list[date] = []
 
-    def test_iteration_does_not_force_a_load(self):
-        sb = SuperBowl()
-        m = LazyDateMap(sb)
-        self.assertEqual(list(m), [])  # sb is empty; iteration empties
+        class TouchOnlyOnIter:
+            def __contains__(self, key):
+                return False
+
+            def __iter__(self):
+                return iter(emitted)
+
+        source = TouchOnlyOnIter()
+        m = LazyDateMap(source)
+        self.assertEqual(list(m), [])
+        emitted.append(date(2025, 1, 1))
+        self.assertEqual(list(m), [date(2025, 1, 1)])
 
 
 class SpecialDaysTests(TestCase):

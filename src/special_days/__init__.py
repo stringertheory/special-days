@@ -17,7 +17,7 @@ Two ways to use the package:
       date(2025, 2, 9) in sb              # True
       sb[date(2025, 2, 9)]                # 'Super Bowl'
 
-      # one merged lazy view over many events
+      # one merged view over many events
       sd = SpecialDays(events=["super_bowl"])
       # ... or mix with the holidays package
       combined = union(holidays.US(), sd)
@@ -36,19 +36,19 @@ try:
 except PackageNotFoundError:  # not installed (raw source-tree usage)
     __version__ = "0.0.0+unknown"
 
-from ._event import _EventDict
-from ._lazy import LazyDateMap, union
+from .event import Event, EventDict
+from .lazy import LazyDateMap, union
 from .oscars import Oscars
 from .super_bowl import SuperBowl
 
-EVENT_REGISTRY: dict[str, type[_EventDict]] = {
+EVENT_REGISTRY: dict[str, type[EventDict]] = {
     "super_bowl": SuperBowl,
     "oscars": Oscars,
 }
 
 
 class SpecialDays(LazyDateMap):
-    """Lazy merged view over multiple special-day event classes.
+    """Merged view over multiple special-day event classes.
 
     ``events`` accepts any mix of: registered string names
     (``"super_bowl"``), event classes (``SuperBowl``), or
@@ -58,14 +58,13 @@ class SpecialDays(LazyDateMap):
 
     def __init__(
         self,
-        events: Iterable[str | type[_EventDict] | _EventDict] | None = None,
+        events: Iterable[str | type[EventDict] | EventDict] | None = None,
     ) -> None:
         if events is None:
             events = list(EVENT_REGISTRY.values())
-        instances = [self._resolve(e) for e in events]
-        super().__init__(*instances)
+        super().__init__(*[self._resolve(e) for e in events])
 
-    def _resolve(self, e: str | type[_EventDict] | _EventDict) -> _EventDict:
+    def _resolve(self, e: str | type[EventDict] | EventDict) -> EventDict:
         if isinstance(e, str):
             try:
                 return EVENT_REGISTRY[e]()
@@ -80,6 +79,8 @@ class SpecialDays(LazyDateMap):
 
 __all__ = [
     "EVENT_REGISTRY",
+    "Event",
+    "EventDict",
     "LazyDateMap",
     "Oscars",
     "SpecialDays",

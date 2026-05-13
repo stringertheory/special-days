@@ -1,21 +1,18 @@
 """Generic event-date lookup.
 
 A package event series (Super Bowl, Oscars, ...) is described by an
-:class:`Event` value: a constant name, a shipped JSON snapshot of all
-known dates, and (optionally) a date-keyed edition labeller. Each
-:class:`Event` exposes:
+:class:`Event` value: a constant name, the Wikidata Q-ID it was built
+from, a shipped JSON snapshot of all known dates, and (optionally) a
+date-keyed edition labeller. Each :class:`Event` exposes:
 
-* a year-keyed module-level API via :meth:`Event.first_date`,
-  :meth:`Event.dates`, :meth:`Event.all_known`, and
-  :meth:`Event.contains_date`,
-* a date-keyed class API via :meth:`Event.cls`, which returns a
-  ``dict[date, str]`` subclass compatible with the
+* a year-keyed API via :meth:`Event.first_date`, :meth:`Event.dates`,
+  :meth:`Event.all_known`, and :meth:`Event.contains_date`,
+* a date-keyed class API via :meth:`Event.cls`, which returns an
+  eagerly-populated :class:`EventDict` subclass compatible with the
   `holidays <https://pypi.org/project/holidays/>`_ package.
 
-The package ships with the full snapshot inside the wheel -- every
-lookup is local and answers in microseconds with no network. Snapshots
-are refreshed in CI from Wikidata; ``pip install --upgrade`` pulls
-fresh data.
+Snapshots ship inside the wheel; every lookup is local and answers in
+microseconds. Snapshots are refreshed in CI from Wikidata.
 """
 
 from __future__ import annotations
@@ -24,7 +21,6 @@ import datetime
 import json
 from collections.abc import Callable, Iterable
 from importlib import resources
-from typing import ClassVar
 
 
 def _normalize_date(key: object) -> object:
@@ -43,17 +39,21 @@ def _check_year(year: object) -> int:
     return year
 
 
-class _EventDict(dict[datetime.date, str]):
-    """Lazy date-keyed dict for one event series.
+class EventDict(dict[datetime.date, str]):
+    """Date-keyed dict for one event series, eagerly populated.
 
-    Subclasses set the ``_event`` class attribute via :meth:`Event.cls`.
-    Mirrors the dict-like surface of `holidays.HolidayBase
-    <https://pypi.org/project/holidays/>`_: only years explicitly
-    queried (or named in ``years=[...]`` at construction time) get
-    loaded. ``datetime`` keys are normalized to ``date`` automatically.
+    Subclasses bind to an :class:`Event` via the ``_event`` class
+    attribute set by :meth:`Event.cls`. Behaves like a plain
+    ``dict[date, str]`` plus:
+
+    * a :meth:`get_list` method, mirroring
+      `holidays.HolidayBase.get_list
+      <https://pypi.org/project/holidays/>`_,
+    * automatic ``datetime`` -> ``date`` normalization on lookup,
+    * an optional ``years=`` filter at construction time.
     """
 
-    _event: ClassVar[Event]  # set by Event.cls()
+    _event: Event  # set by Event.cls()
 
     def __init__(
         self,
@@ -61,29 +61,26 @@ class _EventDict(dict[datetime.date, str]):
         label_with_edition: bool = False,
     ) -> None:
         super().__init__()
-        self._label_with_edition: bool = label_with_edition
-        self._loaded_years: set[int] = set()
         if isinstance(years, int):
             years = [years]
-        for year in years or ():
-            self._ensure_year(_check_year(year))
+        keep = {_check_year(y) for y in years} if years is not None else None
+        for year, ds in self._event.all_known_full().items():
+            if keep is not None and year not in keep:
+                continue
+            for d in ds:
+                self[d] = self._event.label_for(d, label_with_edition)
 
     @property
     def name(self) -> str:
         return self._event.name
 
     def __contains__(self, key: object) -> bool:
-        norm = _normalize_date(key)
-        if not isinstance(norm, datetime.date):
-            return False
-        self._ensure_year(norm.year)
-        return super().__contains__(norm)
+        return super().__contains__(_normalize_date(key))
 
     def __getitem__(self, key: datetime.date) -> str:
         norm = _normalize_date(key)
         if not isinstance(norm, datetime.date):
             raise KeyError(key)
-        self._ensure_year(norm.year)
         return super().__getitem__(norm)
 
     def get(  # type: ignore[override]
@@ -92,7 +89,6 @@ class _EventDict(dict[datetime.date, str]):
         norm = _normalize_date(key)
         if not isinstance(norm, datetime.date):
             return default
-        self._ensure_year(norm.year)
         return super().get(norm, default)
 
     def get_list(self, key: object) -> list[str]:
@@ -101,19 +97,9 @@ class _EventDict(dict[datetime.date, str]):
         labels across multiple sources.
         """
         norm = _normalize_date(key)
-        if not isinstance(norm, datetime.date):
+        if not isinstance(norm, datetime.date) or norm not in self:
             return []
-        self._ensure_year(norm.year)
-        if super().__contains__(norm):
-            return [super().__getitem__(norm)]
-        return []
-
-    def _ensure_year(self, year: int) -> None:
-        if year in self._loaded_years:
-            return
-        for d in self._event.dates(year):
-            self[d] = self._event.label_for(d, self._label_with_edition)
-        self._loaded_years.add(year)
+        return [super().__getitem__(norm)]
 
 
 class Event:
@@ -127,6 +113,10 @@ class Event:
     name :
         Constant label used in the date-keyed dict by default
         (``"Super Bowl"``, ``"Academy Awards"``).
+    wikidata_qid :
+        The Wikidata item identifier for this series (e.g.
+        ``"Q32096"`` for Super Bowl). Used by the snapshot-refresh
+        scripts and the live tests; not consulted at runtime.
     snapshot_resource :
         ``(package_dotted_path, filename)`` passed to
         :func:`importlib.resources.files`.
@@ -138,10 +128,12 @@ class Event:
     def __init__(
         self,
         name: str,
+        wikidata_qid: str,
         snapshot_resource: tuple[str, str],
         edition_label: Callable[[datetime.date], str] | None = None,
     ) -> None:
         self.name = name
+        self.wikidata_qid = wikidata_qid
         self._snapshot_resource = snapshot_resource
         self._edition_label = edition_label
         self._snapshot: dict[int, list[datetime.date]] | None = None
@@ -163,7 +155,7 @@ class Event:
             }
         return self._snapshot
 
-    # --- module-level (year-keyed) API ------------------------------------
+    # --- year-keyed API ---------------------------------------------------
 
     def dates(self, year: int) -> list[datetime.date]:
         """All dates this series has in ``year``.
@@ -187,6 +179,12 @@ class Event:
         """Fresh ``{year: first date}`` for every year in the snapshot."""
         return {y: ds[0] for y, ds in self._load_snapshot().items()}
 
+    def all_known_full(self) -> dict[int, list[datetime.date]]:
+        """Fresh ``{year: [date, ...]}`` for every year. Preserves
+        multi-installment years like 1930 for the Oscars.
+        """
+        return {y: list(ds) for y, ds in self._load_snapshot().items()}
+
     def contains_date(self, d: datetime.date) -> bool:
         """``True`` iff ``d`` is one of this series' known dates."""
         if isinstance(d, datetime.datetime):
@@ -195,11 +193,11 @@ class Event:
 
     # --- date-keyed (holidays-compatible) class API -----------------------
 
-    def cls(self) -> type[_EventDict]:
-        """Return a fresh ``_EventDict`` subclass bound to this event."""
+    def cls(self) -> type[EventDict]:
+        """Return a fresh :class:`EventDict` subclass bound to this event."""
 
-        class _Specific(_EventDict):
-            """Lazy date-keyed lookup; see ``special_days`` README."""
+        class _Specific(EventDict):
+            """Date-keyed lookup; see ``special_days`` README."""
 
         _Specific._event = self
         _Specific.__name__ = self.name.replace(" ", "")

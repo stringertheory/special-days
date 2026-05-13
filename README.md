@@ -74,23 +74,22 @@ The full version is in [`examples/by_date.py`](examples/by_date.py).
 
 ### Date-keyed (drop-in for `holidays`)
 
-A dict-like class keyed by `datetime.date`, lazy on construction —
-only years you actually query get loaded.
+A `dict[date, str]` subclass populated from the shipped snapshot at
+construction time.
 
 ```python
 from datetime import date
 from special_days import SuperBowl
 
-sb = SuperBowl()
+sb = SuperBowl()                         # all 61 known dates
 date(2025, 2, 9) in sb                   # True
 sb[date(2025, 2, 9)]                     # 'Super Bowl'
 sb.get_list(date(2025, 2, 9))            # ['Super Bowl']
+len(sb)                                  # 61
 
-# Eager mode, like holidays.US(years=2025).
+# Filter to a subset of years.
 SuperBowl(years=[1967, 2024, 2025])
-
-# Or preload a whole range.
-SuperBowl(years=range(1967, 2027))
+SuperBowl(years=range(2020, 2030))
 ```
 
 `datetime.datetime` values are normalized to `date` automatically, so

@@ -8,12 +8,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Changed (breaking)
 
-- **Runtime is now offline-only.** Removed `allow_network`, `refresh()`,
-  `WikidataUnavailable`, and the on-miss Wikidata fetch from the public
-  API. Fresh data ships with new releases; a daily CI job rebuilds the
-  snapshot from Wikidata and opens a PR for the maintainer to merge.
-  Users who relied on the runtime refresh path should upgrade their
-  release habit instead: `pip install --upgrade special-days`.
+- **Internal modules renamed without leading underscores.**
+  `special_days._event` -> `special_days.event`,
+  `special_days._lazy` -> `special_days.lazy`,
+  `_EventDict` -> `EventDict`. The public re-exports from
+  `special_days` are unchanged.
+- **`EventDict` is now eagerly populated.** Constructing
+  `SuperBowl()` reads the full snapshot up front (microseconds for
+  ~60-100 dates per event). `years=[...]` is now a *filter* — the
+  result contains only those years — rather than a "preload, keep
+  rest lazy" hint. Iteration and `len()` show every loaded date, as
+  any plain `dict` would.
+- **Wikidata Q-IDs moved off `_wikidata.py` onto each event.**
+  `Event` now takes a required `wikidata_qid` argument; the
+  per-event convenience wrappers `fetch_super_bowl_dates` and
+  `fetch_oscars_dates` are gone. Scripts and live tests call
+  `fetch_event_dates(super_bowl.EVENT.wikidata_qid)` instead.
+- The module-level `_event` instance in each event module is now
+  spelled `EVENT` (uppercase, no underscore) — adding a new event
+  no longer touches the SPARQL utility module.
+- **Runtime is offline-only.** Removed `allow_network`, `refresh()`,
+  `WikidataUnavailable`, and the on-miss Wikidata fetch from the
+  public API. Fresh data ships with new releases; a daily CI job
+  rebuilds the snapshot from Wikidata and opens a PR for the
+  maintainer to merge. Users who relied on the runtime refresh path
+  should upgrade their release habit instead:
+  `pip install --upgrade special-days`.
 - **Removed:** `special_days._cache` module and the per-user cache at
   `~/.cache/special-days/`. No replacement; the snapshot inside the
   wheel is the single source of truth at runtime.

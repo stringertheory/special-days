@@ -104,23 +104,25 @@ class SuperBowlClassTests(TestCase):
         sb = super_bowl.SuperBowl()
         self.assertEqual(sb.get_list(date(2025, 7, 4)), [])
 
-    def test_iteration_shows_only_loaded_dates(self):
+    def test_iteration_yields_every_snapshot_date(self):
+        # SuperBowl() with no `years=` filter loads every date in the
+        # shipped snapshot.
         sb = super_bowl.SuperBowl()
-        self.assertEqual(list(sb), [])  # nothing loaded yet
-        _ = date(2025, 2, 9) in sb  # trigger load of year 2025
-        self.assertEqual(list(sb), [date(2025, 2, 9)])
+        self.assertGreater(len(sb), 50)
+        self.assertIn(date(1967, 1, 15), sb)
+        self.assertIn(date(2025, 2, 9), sb)
 
-    def test_years_constructor_arg_eagerly_loads(self):
+    def test_years_filter_restricts_to_listed_years(self):
         sb = super_bowl.SuperBowl(years=[2024, 2025])
         self.assertEqual(set(sb), {date(2024, 2, 11), date(2025, 2, 9)})
 
-    def test_years_constructor_accepts_single_int(self):
+    def test_years_filter_accepts_single_int(self):
         sb = super_bowl.SuperBowl(years=2025)
         self.assertEqual(list(sb), [date(2025, 2, 9)])
 
-    def test_years_constructor_rejects_non_int(self):
+    def test_years_filter_rejects_non_int(self):
         with self.assertRaises(TypeError):
-            super_bowl.SuperBowl(years="2025")  # type: ignore[arg-type]
+            super_bowl.SuperBowl(years=["2025"])  # type: ignore[list-item]
 
     def test_label_with_edition_emits_roman(self):
         sb = super_bowl.SuperBowl(label_with_edition=True, years=2025)

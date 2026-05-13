@@ -19,7 +19,7 @@ from __future__ import annotations
 
 import datetime
 
-from ._event import Event
+from .event import Event
 
 # Most ceremony numbers follow ``year - 1928`` -- the 1st Academy
 # Awards was held May 1929, year - 1928 = 1. The exceptions are the
@@ -57,8 +57,9 @@ def _edition_label(d: datetime.date) -> str:
     return f"{_ordinal(edition)} Academy Awards"
 
 
-_event = Event(
+EVENT = Event(
     name="Academy Awards",
+    wikidata_qid="Q19020",
     snapshot_resource=("special_days.data", "oscars.json"),
     edition_label=_edition_label,
 )
@@ -73,7 +74,7 @@ def date(year: int) -> datetime.date:
     once, in 1930), returns the earlier; use :func:`dates` to get both.
     Raises ``KeyError`` if the year is not in the shipped snapshot.
     """
-    return _event.first_date(year)
+    return EVENT.first_date(year)
 
 
 def dates(year: int) -> list[datetime.date]:
@@ -82,19 +83,19 @@ def dates(year: int) -> list[datetime.date]:
     Usually a list of length 1; 1930 has two (2nd Academy Awards in
     April and the 3rd in November).
     """
-    return _event.dates(year)
+    return EVENT.dates(year)
 
 
 def all_known() -> dict[int, datetime.date]:
     """``{year: first date}`` for every ceremony in the shipped snapshot."""
-    return _event.all_known()
+    return EVENT.all_known()
 
 
 def is_oscars_night(d: datetime.date) -> bool:
     """``True`` iff ``d`` is the date of a known Academy Awards ceremony."""
-    return _event.contains_date(d)
+    return EVENT.contains_date(d)
 
 
 # Date-keyed (holidays-compatible) class API -------------------------------
 
-Oscars = _event.cls()
+Oscars = EVENT.cls()

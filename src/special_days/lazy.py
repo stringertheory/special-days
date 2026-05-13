@@ -1,10 +1,10 @@
-"""Read-only lazy union view over date-keyed dict-likes.
+"""Read-only union view over date-keyed dict-likes.
 
-Used to compose multiple event objects (and/or third-party objects like
-``holidays.HolidayBase`` instances) into a single lookup. None of the
-sources are materialized: ``in``/``[]``/``.get``/``.get_list`` queries
-are forwarded to each source in turn, so per-year laziness on either
-side is preserved.
+Used to compose this package's eager :class:`~special_days.EventDict`
+instances with third-party lazy sources like ``holidays.HolidayBase``.
+None of the sources are materialized: ``in``/``[]``/``.get``/
+``.get_list`` queries are forwarded to each source in turn, so any
+per-year laziness on the source side is preserved.
 """
 
 from __future__ import annotations
@@ -12,11 +12,11 @@ from __future__ import annotations
 from collections.abc import Iterator, Mapping
 from datetime import date
 
-from ._event import _normalize_date
+from .event import _normalize_date
 
 
 class LazyDateMap:
-    """Lazy union view. Read-only; lookups walk sources in order."""
+    """Read-only union view; lookups walk sources in order."""
 
     def __init__(self, *sources: Mapping[date, str]) -> None:
         self._sources: tuple[Mapping[date, str], ...] = sources
@@ -40,8 +40,8 @@ class LazyDateMap:
         return default
 
     def get_list(self, key: date) -> list[str]:
-        """All labels for ``key`` from every source. Delegates to each
-        source's ``get_list`` if it has one (so ``holidays``'s
+        """All labels for ``key`` across every source. Delegates to
+        each source's ``get_list`` if it has one (so ``holidays``'s
         semicolon-joined values get split correctly), otherwise falls
         back to the source's value.
         """
@@ -67,7 +67,7 @@ class LazyDateMap:
 
 
 def union(*sources: Mapping[date, str]) -> LazyDateMap:
-    """Lazy read-only union of date-keyed dict-likes.
+    """Read-only union of date-keyed dict-likes.
 
     >>> from datetime import date
     >>> from special_days import SuperBowl, union

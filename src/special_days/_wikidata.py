@@ -6,10 +6,12 @@ need to call into it; the wheel ships everything Wikidata told us last
 build.
 
 The SPARQL Query Results JSON Format we parse is a W3C standard
-(https://www.w3.org/TR/sparql11-results-json/), so the response shape is
-stable. The query itself is what's most likely to need updating over the
-years if Wikidata's modeling of an event series changes; see
-:data:`EVENT_DATES_QUERY` below.
+(https://www.w3.org/TR/sparql11-results-json/), so the response shape
+is stable. The query itself is what's most likely to need updating
+over the years if Wikidata's modeling of an event series changes; see
+:data:`EVENT_DATES_QUERY` below. Event identifiers (Q-IDs) live on
+each event's :class:`~special_days.Event` instance, not here -- this
+module is event-agnostic.
 """
 
 from __future__ import annotations
@@ -161,15 +163,3 @@ def fetch_event_dates(series_qid: str) -> dict[int, list[date]]:
         raise ValueError(f"invalid Wikidata QID: {series_qid!r}")
     query = EVENT_DATES_QUERY.format(qid=series_qid)
     return parse_event_results(sparql_query(query))
-
-
-def fetch_super_bowl_dates() -> dict[int, list[date]]:
-    """Convenience wrapper: all known Super Bowl dates from Wikidata."""
-    # Q32096 is the Wikidata item for "Super Bowl".
-    return fetch_event_dates("Q32096")
-
-
-def fetch_oscars_dates() -> dict[int, list[date]]:
-    """Convenience wrapper: all known Academy Awards ceremony dates."""
-    # Q19020 is the Wikidata item for "Academy Awards".
-    return fetch_event_dates("Q19020")

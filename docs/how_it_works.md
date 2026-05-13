@@ -44,8 +44,8 @@ src/special_days/
 ├── __init__.py          # re-exports, SpecialDays, EVENT_REGISTRY
 ├── super_bowl.py        # functional API + SuperBowl class
 ├── oscars.py            # functional API + Oscars class
-├── _event.py            # generic Event + _EventDict base class
-├── _lazy.py             # LazyDateMap + union (lazy view composition)
+├── event.py             # generic Event + EventDict base class
+├── lazy.py              # LazyDateMap + union (composition)
 ├── _wikidata.py         # SPARQL client (used by scripts/live tests only)
 ├── py.typed             # PEP 561 marker for downstream type checkers
 └── data/
@@ -102,51 +102,49 @@ new releases.
 
 Every event also has a class form: `SuperBowl` in `super_bowl.py`,
 registered in `special_days.EVENT_REGISTRY`. The class is a
-`dict[date, str]` subclass that populates lazily per-year on first
-access — the same shape used by `holidays.HolidayBase`.
+`dict[date, str]` subclass that is populated from the shipped snapshot
+at construction time.
 
 ```python
 from datetime import date
 from special_days import SuperBowl
 
-sb = SuperBowl()                       # nothing loaded yet
-date(2025, 2, 9) in sb                 # True; loads year 2025
+sb = SuperBowl()                       # all 61 dates loaded
+date(2025, 2, 9) in sb                 # True
 sb[date(2025, 2, 9)]                   # 'Super Bowl'
 sb.get_list(date(2025, 2, 9))          # ['Super Bowl']
-list(sb)                               # [date(2025, 2, 9)] — only loaded keys
+len(sb)                                # 61
 ```
+
+Pass `years=[...]` (or a single `int`) to construct a *filtered* view
+of just those years. The shipped snapshot is small (tens of dates per
+event), so eager loading is microseconds and matches the obvious
+behavior for iteration and `len()`.
 
 Three composition entry points layered on top:
 
 | Symbol                              | Use case |
 |-------------------------------------|----------|
-| `SpecialDays(events=[...])`         | Lazy union of multiple registered events. Accepts string names, event classes, or pre-built instances. With no argument, includes everything in `EVENT_REGISTRY`. |
-| `union(a, b, ...)`                  | Lazy union of arbitrary date-keyed dict-likes. Use this to mix our events with `holidays.HolidayBase` instances. |
-| `LazyDateMap`                       | Read-only view returned by both of the above. Exposed primarily for type hints; users normally don't construct it directly. |
+| `SpecialDays(events=[...])`         | Merged view of multiple registered events. Accepts string names, event classes, or pre-built instances. With no argument, includes everything in `EVENT_REGISTRY`. |
+| `union(a, b, ...)`                  | Read-only union of arbitrary date-keyed dict-likes. Use this to mix our events with `holidays.HolidayBase` instances. |
+| `LazyDateMap`                       | The view returned by both of the above. Exposed primarily for type hints; users normally don't construct it directly. |
 
-### Lazy semantics
+### Composition semantics
 
-Two rules govern all four lookup operations (`__contains__`,
-`__getitem__`, `get`, `get_list`):
+`LazyDateMap` walks its sources in order and short-circuits at the
+first match for `in` / `[]` / `get`. `get_list` visits every source so
+multiple labels for the same date are all returned. Iteration
+deduplicates keys across sources.
 
-1. **Year-by-year.** A lookup at `date(2025, ...)` loads the entries
-   for 2025 (if not already loaded) and only 2025. Each event keeps a
-   `set[int]` of "years we've decided about" so a year with no
-   announced date doesn't trigger repeated work.
-2. **Source-by-source on union.** `LazyDateMap` walks its sources in
-   order and short-circuits at the first match for `in` / `[]` /
-   `get`. `get_list` visits every source so multiple labels for the
-   same date are all returned. Iteration deduplicates keys across
-   sources.
-
-Critically, `for k in sd` does *not* force a load — it iterates over
-the dict storage actually populated so far, which is just the years
-you've already touched (or what `years=[...]` preloaded). This mirrors
-`holidays.US()`'s behavior.
+The name `LazyDateMap` reflects the *composition*'s laziness —
+queries are forwarded, never materialized into a single dict — not
+laziness in any source. The package's own event dicts are eager;
+third-party sources like `holidays.HolidayBase` may be lazy and the
+union view forwards-not-materializes to preserve that.
 
 `datetime.datetime` keys are normalized to `datetime.date` on lookup,
-so `datetime(2025, 2, 9) in sb` works the same as `date(2025, 2, 9) in
-sb`.
+so `datetime(2025, 2, 9) in sb` works the same as `date(2025, 2, 9)
+in sb`.
 
 ### Labels
 
@@ -335,36 +333,37 @@ To add, say, the World Series:
    ```python
    # src/special_days/world_series.py
    import datetime
-   from ._event import Event
+   from .event import Event
 
    def _edition_label(d: datetime.date) -> str:
        return f"World Series {d.year}"
 
-   _event = Event(
+   EVENT = Event(
        name="World Series",
+       wikidata_qid="Q265538",        # verify on wikidata.org
        snapshot_resource=("special_days.data", "world_series.json"),
        edition_label=_edition_label,
    )
 
-   def date(year): return _event.first_date(year)
-   def dates(year): return _event.dates(year)
-   def all_known(): return _event.all_known()
-   def is_world_series_game(d): return _event.contains_date(d)
+   def date(year): return EVENT.first_date(year)
+   def dates(year): return EVENT.dates(year)
+   def all_known(): return EVENT.all_known()
+   def is_world_series_game(d): return EVENT.contains_date(d)
 
-   WorldSeries = _event.cls()
+   WorldSeries = EVENT.cls()
    ```
 
-3. Add a thin wrapper in `_wikidata.py`:
-   `fetch_world_series_dates() = fetch_event_dates("Q123456")`. The
-   SPARQL query template is already general.
-4. Build a snapshot: add
+3. Build a snapshot: add
    `scripts/build_world_series_snapshot.py` modelled on the existing
-   scripts. Run it; commit `data/world_series.json`. The
+   scripts. It calls
+   `fetch_event_dates(world_series.EVENT.wikidata_qid)`; no edit to
+   `_wikidata.py` is needed because the SPARQL template is already
+   QID-parameterized. Run it; commit `data/world_series.json`. The
    `package-data` glob (`data/*.json`) already picks it up.
-5. Register the class in `__init__.py`: add
+4. Register the class in `__init__.py`: add
    `"world_series": WorldSeries` to `EVENT_REGISTRY` and re-export
    `WorldSeries`.
-6. Add tests mirroring the existing event tests, including a live
+5. Add tests mirroring the existing event tests, including a live
    test that verifies the SPARQL query against the real endpoint.
 
 ## Testing model

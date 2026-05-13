@@ -14,12 +14,18 @@ from __future__ import annotations
 
 import datetime
 
-from ._event import Event
+from .event import Event
 
 # Super Bowl I was played in 1967. The edition number for a given year
-# is ``year - 1966``. Super Bowl 50 (2016) was officially marketed with
-# the Arabic numeral; every other edition uses Roman.
+# is ``year - 1966``.
 _SB_OFFSET = 1966
+
+# Editions that don't follow the default ``"Super Bowl {roman(n)}"``
+# pattern. Super Bowl 50 (2016) was officially marketed with the
+# Arabic numeral. Add a row here if the league ever does it again.
+_SB_OVERRIDES: dict[int, str] = {
+    50: "Super Bowl 50",
+}
 
 
 def _roman(n: int) -> str:
@@ -51,13 +57,12 @@ def _roman(n: int) -> str:
 
 def _edition_label(d: datetime.date) -> str:
     n = d.year - _SB_OFFSET
-    if n == 50:
-        return "Super Bowl 50"
-    return f"Super Bowl {_roman(n)}"
+    return _SB_OVERRIDES.get(n, f"Super Bowl {_roman(n)}")
 
 
-_event = Event(
+EVENT = Event(
     name="Super Bowl",
+    wikidata_qid="Q32096",
     snapshot_resource=("special_days.data", "super_bowl.json"),
     edition_label=_edition_label,
 )
@@ -76,24 +81,24 @@ def date(year: int) -> datetime.date:
     Upgrade the package (``pip install --upgrade special-days``) to
     pick up newly-announced dates.
     """
-    return _event.first_date(year)
+    return EVENT.first_date(year)
 
 
 def dates(year: int) -> list[datetime.date]:
     """All known Super Bowl dates in ``year`` (always 0 or 1)."""
-    return _event.dates(year)
+    return EVENT.dates(year)
 
 
 def all_known() -> dict[int, datetime.date]:
     """``{year: date}`` for every Super Bowl in the shipped snapshot."""
-    return _event.all_known()
+    return EVENT.all_known()
 
 
 def is_super_bowl_sunday(d: datetime.date) -> bool:
     """``True`` iff ``d`` is the date of a known Super Bowl."""
-    return _event.contains_date(d)
+    return EVENT.contains_date(d)
 
 
 # Date-keyed (holidays-compatible) class API -------------------------------
 
-SuperBowl = _event.cls()
+SuperBowl = EVENT.cls()

@@ -119,9 +119,10 @@ def main() -> None:
             0,
             str(Path(__file__).resolve().parent.parent / "src"),
         )
-        from special_days._wikidata import fetch_super_bowl_dates
+        from special_days._wikidata import fetch_event_dates
+        from special_days.super_bowl import EVENT
 
-        data = fetch_super_bowl_dates()
+        data = fetch_event_dates(EVENT.wikidata_qid)
     else:
         data = EMBEDDED
 
