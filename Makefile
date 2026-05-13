@@ -1,5 +1,7 @@
-PYTHON ?= .venv/bin/python
-PIP    ?= .venv/bin/pip
+# Use the project's venv when it exists (local dev); fall back to
+# whatever python/pip are on PATH (CI, post-`source .venv/bin/activate`).
+PYTHON ?= $(if $(wildcard .venv/bin/python),.venv/bin/python,python)
+PIP    ?= $(if $(wildcard .venv/bin/pip),.venv/bin/pip,pip)
 
 .PHONY: help venv install hooks lint test test-live type-check \
         snapshot-super-bowl snapshot-oscars snapshots \
