@@ -57,8 +57,9 @@ about *how to operate the codebase as an agent*, not *what it does*.
   decision is editorial.
 * Approving a snapshot diff that includes unexpected new entries
   (could be vandalism). Always eyeball.
-* Anything that changes the public API. The package is Beta; breaking
-  changes are allowed but they belong in a planned release.
+* Anything that changes the public API. The package is Alpha;
+  breaking changes are expected and explicitly OK, but the maintainer
+  picks the release they go in.
 
 ## Verification
 

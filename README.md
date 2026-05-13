@@ -14,9 +14,10 @@ refreshed in CI from Wikidata and `pip install --upgrade` pulls the
 new dates. A long-running process can opt into a Wikidata refresh
 mid-run — see [the dev guide](docs/how_it_works.md#opt-in-refreshing-from-wikidata-at-runtime).
 
-> **Status: Beta.** Currently ships Super Bowl + Academy Awards
-> (Oscars). The API is settling; behavior-changing edits will land on
-> minor-version bumps until 1.0.
+> **Status: Alpha.** Currently ships Super Bowl + Academy Awards
+> (Oscars). The API is still moving — expect breaking changes on any
+> release until the maintenance process has run for a while and we've
+> learned what wants to change.
 
 ## Install
 
