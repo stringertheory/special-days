@@ -3,15 +3,21 @@
 [![tests](https://github.com/stringertheory/special-days/actions/workflows/ci.yml/badge.svg)](https://github.com/stringertheory/special-days/actions/workflows/ci.yml)
 [![PyPI](https://img.shields.io/pypi/v/special-days.svg)](https://pypi.org/project/special-days/)
 
-Lookup dates for special events: Super Bowl Sunday, Oscars night,
-World Series Game 7, NCAA championship, etc. Data is sourced from
-[Wikidata](https://www.wikidata.org), so it doesn't go stale.
+Lookup dates for special events — Super Bowl Sunday, Oscars night,
+World Series Game 7, NCAA championship. Drop-in compatible with the
+[`holidays`](https://pypi.org/project/holidays/) package, so the same
+`date in calendar` logic you already use for public holidays answers
+"is today Super Bowl Sunday?" too.
 
-Zero runtime dependencies — only the Python standard library.
+Zero runtime dependencies. Lookups are local by default; data is
+refreshed in CI from Wikidata and `pip install --upgrade` pulls the
+new dates. A long-running process can opt into a Wikidata refresh
+mid-run — see [the dev guide](docs/how_it_works.md#opt-in-refreshing-from-wikidata-at-runtime).
 
-## Status
-
-Beta. Currently supports: Super Bowl, Academy Awards (Oscars). More events to come.
+> **Status: Alpha.** Currently ships Super Bowl + Academy Awards
+> (Oscars). The API is still moving — expect breaking changes on any
+> release until the maintenance process has run for a while and I've
+> learned what wants to change.
 
 ## Install
 
@@ -19,9 +25,77 @@ Beta. Currently supports: Super Bowl, Academy Awards (Oscars). More events to co
 pip install special-days
 ```
 
-## Use
+## Quickstart — "what's special about today?"
 
-Two APIs over the same data. Pick whichever fits your question.
+The most common use: ask "is this date significant?" in the
+`holidays`-compatible way.
+
+```python
+from datetime import date
+from special_days import SpecialDays
+
+sd = SpecialDays()                       # all events the package ships
+sd.get_list(date(2025, 2, 9))            # ['Super Bowl']
+sd.get_list(date(2025, 3, 2))            # ['Academy Awards']
+sd.get_list(date(2025, 5, 1))            # []
+```
+
+Compose with the `holidays` package via `union(...)`, preserving
+laziness on both sides:
+
+```python
+import holidays
+from special_days import SpecialDays, union
+
+combined = union(holidays.US(), SpecialDays())
+combined.get_list(date(2025, 2, 9))      # ['Super Bowl']
+combined.get_list(date(2025, 7, 4))      # ['Independence Day']
+```
+
+Drop a flat `name → emoji` dict on top and you have a "what's special
+about today?" UI in a dozen lines:
+
+```python
+EMOJI = {
+    "Independence Day": "🎆",
+    "Super Bowl":       "🏈",
+    "Academy Awards":   "🎬",
+}
+
+def specials(d):
+    return [(n, EMOJI[n]) for n in combined.get_list(d) if n in EMOJI]
+
+specials(date(2025, 2, 9))               # [('Super Bowl', '🏈')]
+specials(date(2025, 7, 4))               # [('Independence Day', '🎆')]
+specials(date(2025, 5, 1))               # []
+```
+
+The full version is in [`examples/by_date.py`](examples/by_date.py).
+
+## Two ways to use it
+
+### Date-keyed (drop-in for `holidays`)
+
+A `dict[date, str]` subclass populated from the shipped snapshot at
+construction time.
+
+```python
+from datetime import date
+from special_days import SuperBowl
+
+sb = SuperBowl()                         # every known Super Bowl date
+date(2025, 2, 9) in sb                   # True
+sb[date(2025, 2, 9)]                     # 'Super Bowl'
+sb.get_list(date(2025, 2, 9))            # ['Super Bowl']
+len(sb)                                  # one entry per game, grows each year
+
+# Filter to a subset of years.
+SuperBowl(years=[1967, 2024, 2025])
+SuperBowl(years=range(2020, 2030))
+```
+
+`datetime.datetime` values are normalized to `date` automatically, so
+mixing the two in a lookup just works.
 
 ### Year-keyed (planner-style)
 
@@ -29,122 +103,108 @@ Two APIs over the same data. Pick whichever fits your question.
 from datetime import date
 from special_days import super_bowl
 
-super_bowl.date(2025)
-# datetime.date(2025, 2, 9)
-
-super_bowl.is_super_bowl_sunday(date(2025, 2, 9))
-# True
-
-super_bowl.all_known()
-# {1967: date(1967, 1, 15), ..., 2026: date(2026, 2, 8)}
+super_bowl.date(2025)                    # datetime.date(2025, 2, 9)
+super_bowl.is_super_bowl_sunday(date(2025, 2, 9))   # True
+super_bowl.all_known()                   # {1967: date(1967, 1, 15), ..., 2027: date(2027, 2, 14)}
 ```
 
-### Date-keyed (`holidays`-compatible)
+Pick whichever shape fits the question.
 
-A dict-like class keyed by `datetime.date`, lazy on construction — only
-years you actually query get loaded.
+## Display strings
+
+By default the dict value is the constant event name (`"Super Bowl"`,
+`"Academy Awards"`). Pass `label_with_edition=True` for
+edition-numbered display strings:
 
 ```python
-from datetime import date
-from special_days import SuperBowl, SpecialDays, union
-
-sb = SuperBowl()
-date(2025, 2, 9) in sb           # True
-sb[date(2025, 2, 9)]             # 'Super Bowl'
-sb.get_list(date(2025, 2, 9))    # ['Super Bowl']
-
-# eager mode, like holidays.US(years=2025)
-SuperBowl(years=[2024, 2025])
-
-# edition-numbered labels for display strings
 SuperBowl(label_with_edition=True)[date(2025, 2, 9)]    # 'Super Bowl LIX'
+Oscars(label_with_edition=True)[date(2025, 3, 2)]        # '97th Academy Awards'
 ```
 
-Compose with the [`holidays`](https://pypi.org/project/holidays/) package
-via `union(...)`, preserving laziness on both sides:
+Super Bowl 50 (2016) uses the Arabic numeral, matching official NFL
+branding; every other edition uses Roman. The Academy Awards labeller
+handles 1930's two ceremonies (the 2nd in April, the 3rd in November)
+and the subsequent resync at the 6th ceremony in 1934.
+
+## Two ceremonies in one year
+
+Most series have at most one installment per year, but not all. 1930
+hosted two Academy Awards (the 2nd and 3rd):
 
 ```python
-import holidays
-from special_days import SpecialDays, union
+from special_days import oscars
 
-combined = union(holidays.US(), SpecialDays())   # all known events
-combined.get_list(date(2025, 2, 9))    # ['Super Bowl']
-combined.get_list(date(2025, 3, 2))    # ['Academy Awards']
-combined.get_list(date(2025, 7, 4))    # ['Independence Day']
+oscars.date(1930)                        # datetime.date(1930, 4, 3)  -- first only
+oscars.dates(1930)                       # [date(1930, 4, 3), date(1930, 11, 5)]
 ```
 
-`SpecialDays(events=...)` accepts registered string names
-(`"super_bowl"`, `"oscars"`), event classes (`SuperBowl`, `Oscars`),
-or pre-built instances. With no argument it includes everything the
-package ships.
+`SpecialDays`/`Oscars` dicts contain *both* dates and label them
+distinctly when `label_with_edition=True`.
 
-### Far-future years
+## Recipes
 
-A snapshot through Super Bowl LX (Feb 8, 2026) ships with the package, so
-lookups for known years work offline. Asking for an unknown year
-transparently refreshes from Wikidata:
+### Next upcoming event from today
+
+`is_super_bowl_sunday` over a date range, or just iterate `dates()` /
+`all_known()`:
 
 ```python
-super_bowl.date(2035)   # hits Wikidata, caches the result
+from datetime import date, timedelta
+from special_days import super_bowl
+
+today = date.today()
+upcoming = next(
+    d for d in (today + timedelta(days=i) for i in range(365 * 2))
+    if super_bowl.is_super_bowl_sunday(d)
+)
 ```
 
-Disable the network fallback explicitly if you need it:
+### All special days in a date range
 
 ```python
-super_bowl.date(2035, allow_network=False)   # raises KeyError
+from datetime import date, timedelta
+from special_days import SpecialDays
+
+sd = SpecialDays()
+start, end = date(2025, 1, 1), date(2025, 12, 31)
+days = [d for d in (start + timedelta(days=i)
+                    for i in range((end - start).days + 1))
+        if d in sd]
+# [date(2025, 2, 9), date(2025, 3, 2)]
 ```
 
-Force a refresh:
+### Just one event, not all of them
+
+`SpecialDays(events=[...])` accepts string names, classes, or
+already-built instances:
 
 ```python
-super_bowl.refresh()   # re-fetch everything, update local cache
+from special_days import SpecialDays, SuperBowl
+
+SpecialDays(events=["super_bowl"])      # by registered name
+SpecialDays(events=[SuperBowl])         # by class
+SpecialDays(events=[SuperBowl(years=[2024, 2025])])   # pre-filtered instance
 ```
 
-## Why Wikidata?
+## Data freshness
 
-- **Structured.** Each Super Bowl has a stable Q-ID with a "point in
-  time" property. We query that property directly — no HTML scraping,
-  no infobox parsing.
-- **Long-lived.** Wikidata has been stable since 2012 and is increasingly
-  the upstream source for Wikipedia infoboxes.
-- **Public, no auth.** No API keys, no signup, generous rate limits for
-  conservative use like ours.
+The shipped snapshot covers every event known to the maintainers at
+release time — every past game and every officially-announced future
+game. A daily CI job rebuilds the snapshot from Wikidata; if anything
+changed, it opens a PR. Once merged, a new patch release ships to
+PyPI. Run `pip install --upgrade special-days` to pull the latest.
 
-The package ships an offline snapshot so first use doesn't require
-network, and degrades gracefully when Wikidata is unreachable.
+For maintainers and curious users, the full pipeline is documented in
+[`docs/how_it_works.md`](docs/how_it_works.md).
 
-## Cache
+## Errors
 
-Refreshed data is cached at
-`$XDG_CACHE_HOME/special-days/` (or `~/.cache/special-days/` on most
-systems). Safe to delete; it will be repopulated.
-
-## Tests
-
-```bash
-make venv install hooks        # one-time setup (venv, dev install, pre-commit)
-make test                      # unit tests (mocked HTTP) — fast, always run
-make test-live                 # opt-in: hits the real Wikidata SPARQL endpoint
-```
-
-The live tests exist precisely to catch the case where Wikidata reshapes
-its data and our SPARQL query stops returning the right items. If they
-fail, update `EVENT_DATES_QUERY` in `src/special_days/_wikidata.py` and
-cut a new release.
-
-## Maintenance
-
-To regenerate every shipped snapshot from current Wikidata data:
-
-```bash
-make snapshots-live
-```
-
-`make snapshots` (no `-live`) writes embedded hand-curated lists where
-they exist — use this if Wikidata is wrong about a specific date and
-you want to ship a correction. Per-event targets:
-`make snapshot-super-bowl`, `make snapshot-super-bowl-live`,
-`make snapshot-oscars`, `make snapshot-oscars-live`.
+* `super_bowl.date(year)` raises `KeyError` if the year is not in the
+  shipped snapshot. Upgrade the package to pick up newly-announced
+  dates.
+* Non-`int` `year` arguments raise `TypeError` immediately.
+* `SpecialDays(events=[...])` raises `ValueError` for unknown event
+  strings, listing the valid ones.
 
 ## License
 

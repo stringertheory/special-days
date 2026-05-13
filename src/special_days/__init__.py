@@ -1,30 +1,77 @@
-"""special-days: lookup dates for special events.
+"""special-days: dates of named recurring events.
 
-Two ways to use the package:
+Ships dates for events like Super Bowl Sunday and the Academy Awards
+-- the kind of date that isn't a public holiday but matters for
+"what's special about today?" features. Drop-in compatible with the
+`holidays <https://pypi.org/project/holidays/>`_ package via
+:func:`union`.
 
-  Functional, year-keyed::
+The most common use ("is today special?"):
 
-      from special_days import super_bowl
-      super_bowl.date(2025)               # datetime.date(2025, 2, 9)
+>>> from datetime import date
+>>> from special_days import SpecialDays
+>>> sd = SpecialDays()
+>>> sd.get_list(date(2025, 2, 9))
+['Super Bowl']
+>>> sd.get_list(date(2025, 3, 2))
+['Academy Awards']
+>>> sd.get_list(date(2025, 5, 1))
+[]
 
-  ``holidays``-compatible, date-keyed::
+Compose with the `holidays`_ package (or any other date-keyed
+mapping) via :func:`union`. The ``holidays`` side stays lazy --
+years are only computed when queried:
 
-      from datetime import date
-      from special_days import SuperBowl, SpecialDays, union
-      import holidays
+.. _holidays: https://pypi.org/project/holidays/
 
-      sb = SuperBowl()
-      date(2025, 2, 9) in sb              # True
-      sb[date(2025, 2, 9)]                # 'Super Bowl'
+>>> import holidays
+>>> from special_days import union
+>>> combined = union(holidays.US(), SpecialDays())
+>>> combined.get_list(date(2025, 2, 9))
+['Super Bowl']
+>>> combined.get_list(date(2025, 7, 4))
+['Independence Day']
+>>> combined.get_list(date(2025, 5, 1))
+[]
 
-      # one merged lazy view over many events
-      sd = SpecialDays(events=["super_bowl"])
-      # ... or mix with the holidays package
-      combined = union(holidays.US(), sd)
+Two parallel APIs over the same data:
 
-Data is sourced from Wikidata; a snapshot ships with the package so
-lookups work offline, and a network refresh keeps the data from going
-stale over the years.
+* **Year-keyed module API.** ``from special_days import super_bowl``
+  then ``super_bowl.date(2025)``, ``super_bowl.dates(year)``,
+  ``super_bowl.is_super_bowl_sunday(d)``, ``super_bowl.all_known()``.
+  Same shape for ``oscars`` (``is_oscars_night``).
+
+* **Date-keyed class API** (``holidays``-compatible). ``SuperBowl()``,
+  ``Oscars()``, ``SpecialDays()`` are ``dict[date, str]`` subclasses
+  eagerly populated from the shipped snapshot at construction.
+  ``len`` and iteration reflect the full snapshot; ``datetime`` keys
+  are normalized to ``date`` on lookup.
+
+Public names exported from this package:
+
+* :class:`SuperBowl`, :class:`Oscars` -- per-event date-keyed dict
+  subclasses.
+* :class:`SpecialDays` -- merged view over every shipped event, or
+  a subset via ``SpecialDays(events=[...])``.
+* :func:`union`, :class:`LazyDateMap` -- compose with arbitrary
+  date-keyed mappings (including lazy ones like ``holidays``).
+* :class:`Event`, :class:`EventDict` -- the underlying building
+  blocks (used internally; relevant if you're adding a new event
+  series -- see ``docs/how_it_works.md``).
+* :data:`EVENT_REGISTRY` -- ``{name: dict_class}`` of shipped events.
+
+Runtime is offline. The shipped snapshot is the single source of
+truth at runtime; ``pip install --upgrade special-days`` pulls fresh
+dates (snapshots are refreshed daily in CI from Wikidata). For
+mid-run refresh in a long-running process, see
+``super_bowl.EVENT.fetch_from_wikidata()``.
+
+Errors at a glance:
+
+* Unknown year -> ``KeyError`` with an "upgrade the package" hint.
+* Non-``int`` year -> ``TypeError``.
+* Unknown event name to ``SpecialDays(events=[...])`` -> ``ValueError``
+  listing the known names.
 """
 
 from collections.abc import Iterable
@@ -36,19 +83,19 @@ try:
 except PackageNotFoundError:  # not installed (raw source-tree usage)
     __version__ = "0.0.0+unknown"
 
-from ._event import _Event
-from ._lazy import LazyDateMap, union
+from .event import Event, EventDict
+from .lazy import LazyDateMap, union
 from .oscars import Oscars
 from .super_bowl import SuperBowl
 
-EVENT_REGISTRY: dict[str, type[_Event]] = {
+EVENT_REGISTRY: dict[str, type[EventDict]] = {
     "super_bowl": SuperBowl,
     "oscars": Oscars,
 }
 
 
 class SpecialDays(LazyDateMap):
-    """Lazy merged view over multiple special-day event classes.
+    """Merged view over multiple special-day event classes.
 
     ``events`` accepts any mix of: registered string names
     (``"super_bowl"``), event classes (``SuperBowl``), or
@@ -58,32 +105,29 @@ class SpecialDays(LazyDateMap):
 
     def __init__(
         self,
-        events: Iterable[str | type[_Event] | _Event] | None = None,
-        allow_network: bool = True,
+        events: Iterable[str | type[EventDict] | EventDict] | None = None,
     ) -> None:
         if events is None:
             events = list(EVENT_REGISTRY.values())
-        self._allow_network: bool = allow_network
-        instances = [self._resolve(e) for e in events]
-        super().__init__(*instances)
+        super().__init__(*[self._resolve(e) for e in events])
 
-    def _resolve(self, e: str | type[_Event] | _Event) -> _Event:
+    def _resolve(self, e: str | type[EventDict] | EventDict) -> EventDict:
         if isinstance(e, str):
             try:
-                cls = EVENT_REGISTRY[e]
+                return EVENT_REGISTRY[e]()
             except KeyError:
-                known = sorted(EVENT_REGISTRY)
                 raise ValueError(
-                    f"Unknown event {e!r}. Known: {known}"
+                    f"Unknown event {e!r}. Known: {sorted(EVENT_REGISTRY)}"
                 ) from None
-            return cls(allow_network=self._allow_network)
         if isinstance(e, type):
-            return e(allow_network=self._allow_network)
+            return e()
         return e
 
 
 __all__ = [
     "EVENT_REGISTRY",
+    "Event",
+    "EventDict",
     "LazyDateMap",
     "Oscars",
     "SpecialDays",

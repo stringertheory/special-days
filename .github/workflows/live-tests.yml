@@ -1,0 +1,23 @@
+name: Live tests (Wikidata)
+
+# Weekly: hit the real Wikidata endpoint to catch query drift. The
+# refresh-snapshots workflow only runs live tests when the snapshot
+# changes; this one runs them unconditionally so a "no new data, but
+# the query stopped working" regression still surfaces.
+
+on:
+  schedule:
+    - cron: "0 8 * * 1" # Mondays 08:00 UTC
+  workflow_dispatch: {}
+
+jobs:
+  live:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: pip install -e ".[dev]"
+      - run: SPECIAL_DAYS_LIVE_TESTS=1 python -m unittest discover -s tests -v

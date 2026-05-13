@@ -1,10 +1,9 @@
 """Tests for the public super_bowl API."""
 
-from datetime import date
-from unittest import TestCase, mock
+from datetime import date, datetime
+from unittest import TestCase
 
 from special_days import super_bowl
-from special_days._wikidata import WikidataUnavailable
 
 
 class KnownDatesFromSnapshotTests(TestCase):
@@ -23,11 +22,25 @@ class KnownDatesFromSnapshotTests(TestCase):
         self.assertEqual(super_bowl.date(2026), date(2026, 2, 8))
 
 
+class DatesFunctionTests(TestCase):
+    def test_dates_returns_single_element_list(self):
+        self.assertEqual(super_bowl.dates(2025), [date(2025, 2, 9)])
+
+    def test_dates_unknown_year_returns_empty_list(self):
+        self.assertEqual(super_bowl.dates(1900), [])
+
+
 class IsSuperBowlSundayTests(TestCase):
     def test_true_on_super_bowl_day(self):
         self.assertTrue(super_bowl.is_super_bowl_sunday(date(2025, 2, 9)))
         self.assertTrue(super_bowl.is_super_bowl_sunday(date(2024, 2, 11)))
         self.assertTrue(super_bowl.is_super_bowl_sunday(date(1967, 1, 15)))
+
+    def test_true_on_datetime_normalized_to_date(self):
+        self.assertTrue(super_bowl.is_super_bowl_sunday(datetime(2025, 2, 9)))
+        self.assertTrue(
+            super_bowl.is_super_bowl_sunday(datetime(2025, 2, 9, 18, 30))
+        )
 
     def test_false_when_off_by_one_day(self):
         self.assertFalse(super_bowl.is_super_bowl_sunday(date(2025, 2, 10)))
@@ -51,43 +64,13 @@ class AllKnownTests(TestCase):
 
 
 class UnknownYearTests(TestCase):
-    def test_raises_keyerror_when_year_unknown_and_no_network(self):
-        with self.assertRaises(KeyError):
-            super_bowl.date(2099, allow_network=False)
-
-    @mock.patch("special_days.super_bowl._fetch_from_wikidata")
-    def test_falls_back_to_network_when_year_missing(self, mock_fetch):
-        mock_fetch.return_value = {2099: date(2099, 2, 14)}
-        self.assertEqual(super_bowl.date(2099), date(2099, 2, 14))
-        mock_fetch.assert_called_once()
-
-    @mock.patch("special_days.super_bowl._fetch_from_wikidata")
-    def test_does_not_call_network_when_year_in_snapshot(self, mock_fetch):
-        super_bowl.date(2025)
-        mock_fetch.assert_not_called()
-
-    @mock.patch("special_days.super_bowl._fetch_from_wikidata")
-    def test_raises_when_network_also_lacks_year(self, mock_fetch):
-        mock_fetch.return_value = {}
+    def test_raises_keyerror_when_year_unknown(self):
         with self.assertRaises(KeyError):
             super_bowl.date(2099)
 
-
-class RefreshTests(TestCase):
-    @mock.patch("special_days.super_bowl._fetch_from_wikidata")
-    def test_refresh_updates_known_dates(self, mock_fetch):
-        mock_fetch.return_value = {
-            2099: date(2099, 2, 14),
-            2025: date(2025, 2, 9),
-        }
-        result = super_bowl.refresh()
-        self.assertEqual(result[2099], date(2099, 2, 14))
-
-    @mock.patch("special_days.super_bowl._fetch_from_wikidata")
-    def test_refresh_propagates_network_errors(self, mock_fetch):
-        mock_fetch.side_effect = WikidataUnavailable("network down")
-        with self.assertRaises(WikidataUnavailable):
-            super_bowl.refresh()
+    def test_rejects_non_int_year(self):
+        with self.assertRaises(TypeError):
+            super_bowl.date("2025")  # type: ignore[arg-type]
 
 
 class SuperBowlClassTests(TestCase):
@@ -97,6 +80,11 @@ class SuperBowlClassTests(TestCase):
         sb = super_bowl.SuperBowl()
         self.assertIn(date(2025, 2, 9), sb)
         self.assertNotIn(date(2025, 2, 10), sb)
+
+    def test_datetime_membership_is_normalized_to_date(self):
+        sb = super_bowl.SuperBowl()
+        self.assertIn(datetime(2025, 2, 9), sb)
+        self.assertIn(datetime(2025, 2, 9, 12, 0, 0), sb)
 
     def test_lookup_returns_constant_label_by_default(self):
         sb = super_bowl.SuperBowl()
@@ -116,33 +104,25 @@ class SuperBowlClassTests(TestCase):
         sb = super_bowl.SuperBowl()
         self.assertEqual(sb.get_list(date(2025, 7, 4)), [])
 
-    def test_iteration_shows_only_loaded_dates(self):
+    def test_iteration_yields_every_snapshot_date(self):
+        # SuperBowl() with no `years=` filter loads every date in the
+        # shipped snapshot.
         sb = super_bowl.SuperBowl()
-        self.assertEqual(list(sb), [])  # nothing loaded yet
-        _ = date(2025, 2, 9) in sb  # trigger load of year 2025
-        self.assertEqual(list(sb), [date(2025, 2, 9)])
+        self.assertGreater(len(sb), 50)
+        self.assertIn(date(1967, 1, 15), sb)
+        self.assertIn(date(2025, 2, 9), sb)
 
-    def test_years_constructor_arg_eagerly_loads(self):
+    def test_years_filter_restricts_to_listed_years(self):
         sb = super_bowl.SuperBowl(years=[2024, 2025])
         self.assertEqual(set(sb), {date(2024, 2, 11), date(2025, 2, 9)})
 
-    def test_years_constructor_accepts_single_int(self):
+    def test_years_filter_accepts_single_int(self):
         sb = super_bowl.SuperBowl(years=2025)
         self.assertEqual(list(sb), [date(2025, 2, 9)])
 
-    @mock.patch("special_days.super_bowl._fetch_from_wikidata")
-    def test_unknown_year_does_not_repeat_network_calls(self, mock_fetch):
-        mock_fetch.return_value = {}
-        sb = super_bowl.SuperBowl()
-        self.assertNotIn(date(2099, 2, 14), sb)
-        self.assertNotIn(date(2099, 2, 14), sb)  # cached "not announced"
-        self.assertEqual(mock_fetch.call_count, 1)
-
-    @mock.patch("special_days.super_bowl._fetch_from_wikidata")
-    def test_allow_network_false_skips_fetch(self, mock_fetch):
-        sb = super_bowl.SuperBowl(allow_network=False)
-        self.assertNotIn(date(2099, 2, 14), sb)
-        mock_fetch.assert_not_called()
+    def test_years_filter_rejects_non_int(self):
+        with self.assertRaises(TypeError):
+            super_bowl.SuperBowl(years=["2025"])  # type: ignore[list-item]
 
     def test_label_with_edition_emits_roman(self):
         sb = super_bowl.SuperBowl(label_with_edition=True, years=2025)
@@ -161,24 +141,14 @@ class SuperBowlClassTests(TestCase):
         self.assertEqual(sb[date(2024, 2, 11)], "Super Bowl LVIII")  # 58
 
 
-class SuperBowlClassRefreshTests(TestCase):
-    @mock.patch("special_days.super_bowl._fetch_from_wikidata")
-    def test_refresh_clears_loaded_state_then_repopulates_on_access(
-        self, mock_fetch
-    ):
-        mock_fetch.return_value = {2025: date(2025, 2, 9)}
-        sb = super_bowl.SuperBowl(years=2025)
-        self.assertEqual(list(sb), [date(2025, 2, 9)])
-        sb.refresh()
-        self.assertEqual(list(sb), [])  # cleared
-        _ = date(2025, 2, 9) in sb
-        self.assertEqual(list(sb), [date(2025, 2, 9)])
+class RomanNumeralEdgeCaseTests(TestCase):
+    """``roman`` must use standard subtractive notation through 3999."""
 
-    @mock.patch("special_days.super_bowl._fetch_from_wikidata")
-    def test_refresh_raises_when_network_disabled(self, mock_fetch):
-        sb = super_bowl.SuperBowl(allow_network=False, years=2025)
-        with self.assertRaises(RuntimeError):
-            sb.refresh()
-        mock_fetch.assert_not_called()
-        # State must be untouched after a refused refresh.
-        self.assertEqual(list(sb), [date(2025, 2, 9)])
+    def test_subtractive_notation_used_above_399(self):
+        from special_days.numerals import roman
+
+        self.assertEqual(roman(400), "CD")
+        self.assertEqual(roman(500), "D")
+        self.assertEqual(roman(900), "CM")
+        self.assertEqual(roman(1000), "M")
+        self.assertEqual(roman(3999), "MMMCMXCIX")
