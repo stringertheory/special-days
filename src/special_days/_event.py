@@ -52,9 +52,11 @@ class _EventDict(dict):  # type: ignore[type-arg]
     """Lazy date-keyed dict for one event series.
 
     Subclasses set the ``_event`` class attribute via :meth:`Event.cls`.
-    Behaves like ``dict[date, str]`` and mirrors
-    ``holidays.HolidayBase``: only years explicitly queried (or named
-    in ``years=[...]`` at construction time) get loaded.
+    Behaves like ``dict[date, str]`` and mirrors the dict-like surface
+    of `holidays.HolidayBase
+    <https://pypi.org/project/holidays/>`_: only years explicitly
+    queried (or named in ``years=[...]`` at construction time) get
+    loaded. ``datetime`` keys are normalized to ``date`` automatically.
     """
 
     _event: ClassVar[Event]  # set by Event.cls()
@@ -199,7 +201,10 @@ class Event:
         """
         ds = self.dates(year)
         if not ds:
-            raise KeyError(year)
+            raise KeyError(
+                f"{year}: not in shipped {self.name} snapshot. "
+                "Upgrade special-days to pick up newly-announced dates."
+            )
         return ds[0]
 
     def all_known(self) -> dict[int, datetime.date]:
@@ -232,10 +237,15 @@ class Event:
 
         class _Specific(_EventDict):
             __doc__ = (
-                f"Lazy date-keyed lookup of {self.name} dates.\n\n"
+                f"Lazy date-keyed lookup of {self.name} dates. "
+                "Drop-in compatible with `holidays.HolidayBase "
+                "<https://pypi.org/project/holidays/>`_.\n\n"
                 f"See ``special_days."
                 f"{self.name.lower().replace(' ', '_')}`` "
-                "for the year-keyed module API over the same data."
+                "for the year-keyed module API over the same data; the "
+                "``year`` argument means the *calendar year in which the "
+                "event took place*, which for some series differs from "
+                "the season or films-honored year."
             )
 
         _Specific._event = self

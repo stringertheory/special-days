@@ -50,8 +50,25 @@ combined.get_list(date(2025, 2, 9))      # ['Super Bowl']
 combined.get_list(date(2025, 7, 4))      # ['Independence Day']
 ```
 
-A complete "emoji per special day" demo lives in
-[`examples/by_date.py`](examples/by_date.py).
+Drop a flat `name → emoji` dict on top and you have a "what's special
+about today?" UI in a dozen lines:
+
+```python
+EMOJI = {
+    "Independence Day": "🎆",
+    "Super Bowl":       "🏈",
+    "Academy Awards":   "🎬",
+}
+
+def specials(d):
+    return [(n, EMOJI[n]) for n in combined.get_list(d) if n in EMOJI]
+
+specials(date(2025, 2, 9))               # [('Super Bowl', '🏈')]
+specials(date(2025, 7, 4))               # [('Independence Day', '🎆')]
+specials(date(2025, 5, 1))               # []
+```
+
+The full version is in [`examples/by_date.py`](examples/by_date.py).
 
 ## Two ways to use it
 

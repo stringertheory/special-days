@@ -28,6 +28,10 @@ SPARQL_ENDPOINT = "https://query.wikidata.org/sparql"
 
 # Wikidata asks API clients to identify themselves so abuse can be
 # diagnosed and contacted: https://meta.wikimedia.org/wiki/User-Agent_policy
+#
+# If you fork this package, change the URL in the user-agent below to
+# point at your fork. Leaving the upstream URL means an abuse complaint
+# about your fork's traffic lands in our inbox, not yours.
 _USER_AGENT = (
     f"special-days/{__version__} "
     "(+https://github.com/stringertheory/special-days)"
@@ -96,8 +100,10 @@ def sparql_query(query: str, timeout: float = 15) -> dict[str, Any]:
     request.add_header("User-Agent", _USER_AGENT)
     try:
         # The URL is built from a hardcoded https endpoint plus a
-        # urlencoded SPARQL query; no caller-controlled scheme is reachable.
-        with urlopen(request, timeout=timeout) as response:  # noqa: S310
+        # urlencoded SPARQL query; no caller-controlled scheme is
+        # reachable. Suppressing both ruff (S310) and bandit (B310)
+        # for the same reason.
+        with urlopen(request, timeout=timeout) as response:  # noqa: S310  # nosec B310
             body = response.read()
     except (HTTPError, URLError, TimeoutError) as exc:
         raise WikidataUnavailable(str(exc)) from exc

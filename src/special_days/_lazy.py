@@ -73,11 +73,15 @@ class LazyDateMap:
 def union(*sources: Mapping[date, str]) -> LazyDateMap:
     """Lazy read-only union of date-keyed dict-likes.
 
-    >>> import holidays
-    >>> from special_days import SuperBowl, union
-    >>> days = union(holidays.US(), SuperBowl())
     >>> from datetime import date
-    >>> date(2025, 2, 9) in days     # doctest: +SKIP
+    >>> from special_days import SuperBowl, union
+    >>> us_like = {date(2025, 7, 4): "Independence Day"}
+    >>> days = union(us_like, SuperBowl())
+    >>> date(2025, 7, 4) in days
     True
+    >>> date(2025, 2, 9) in days
+    True
+    >>> sorted(days.get_list(date(2025, 2, 9)))
+    ['Super Bowl']
     """
     return LazyDateMap(*sources)

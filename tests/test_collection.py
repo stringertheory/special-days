@@ -1,5 +1,6 @@
 """Tests for LazyDateMap, union(), and SpecialDays."""
 
+import doctest
 from datetime import date, datetime
 from unittest import TestCase
 
@@ -9,8 +10,15 @@ from special_days import (
     Oscars,
     SpecialDays,
     SuperBowl,
+    _lazy,
     union,
 )
+
+
+def load_tests(loader, tests, ignore):
+    """Run doctests in special_days._lazy alongside the regular suite."""
+    tests.addTests(doctest.DocTestSuite(_lazy))
+    return tests
 
 
 class LazyDateMapTests(TestCase):
