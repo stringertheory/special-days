@@ -58,11 +58,8 @@ EVENT = Event(
     edition_label=_edition_label,
 )
 
-# Year-keyed API: aliases of the Event's methods.
 date = EVENT.first_date
 dates = EVENT.dates
 all_known = EVENT.all_known
 is_oscars_night = EVENT.contains_date
-
-# Date-keyed (holidays-compatible) class API.
 Oscars = EVENT.cls()
