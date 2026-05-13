@@ -38,6 +38,11 @@ jobs:
       - name: Run live tests
         if: steps.diff.outputs.changed == 'true'
         run: SPECIAL_DAYS_LIVE_TESTS=1 python -m unittest discover -s tests -v
+      - name: Annotate PR body
+        if: steps.diff.outputs.changed == 'true'
+        # Writes per-change Wikidata Q-ID + history + Google cross-check
+        # links to /tmp/pr-body.md; peter-evans picks it up via body-path.
+        run: python scripts/annotate_refresh.py > /tmp/pr-body.md
       - name: Open PR
         if: steps.diff.outputs.changed == 'true'
         uses: peter-evans/create-pull-request@v8
@@ -45,11 +50,7 @@ jobs:
           title: "Refresh snapshots from Wikidata"
           branch: bot/refresh-snapshots
           commit-message: "Refresh snapshots from Wikidata"
-          body: |
-            Daily Wikidata snapshot refresh. Live tests passed.
-
-            Eyeball the diff before merging — unexpected new entries
-            could indicate Wikidata vandalism.
+          body-path: /tmp/pr-body.md
           labels: |
             automated
             snapshot-refresh
