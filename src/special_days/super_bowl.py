@@ -56,6 +56,10 @@ def all_known() -> dict[int, datetime.date]:
 def date(year: int, allow_network: bool = True) -> datetime.date:
     """Return the date of the Super Bowl played in the given year.
 
+    Note: the Super Bowl is the championship for the previous NFL
+    season. ``date(2025)`` returns Super Bowl LIX (February 9, 2025),
+    which capped the 2024 NFL season.
+
     Looks in local data first (cache, then shipped snapshot). If the
     year isn't known and ``allow_network`` is True, refreshes from
     Wikidata. Raises ``KeyError`` if the year still can't be resolved.

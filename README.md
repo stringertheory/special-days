@@ -123,7 +123,7 @@ systems). Safe to delete; it will be repopulated.
 ## Tests
 
 ```bash
-make venv && make install      # one-time setup
+make venv install hooks        # one-time setup (venv, dev install, pre-commit)
 make test                      # unit tests (mocked HTTP) — fast, always run
 make test-live                 # opt-in: hits the real Wikidata SPARQL endpoint
 ```
