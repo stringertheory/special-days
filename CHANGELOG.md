@@ -1,0 +1,81 @@
+# Changelog
+
+All notable changes to this project will be documented in this file.
+The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
+and this project adheres to [Semantic Versioning](https://semver.org/).
+
+## [Unreleased]
+
+### Changed (breaking)
+
+- **Runtime is now offline-only.** Removed `allow_network`, `refresh()`,
+  `WikidataUnavailable`, and the on-miss Wikidata fetch from the public
+  API. Fresh data ships with new releases; a daily CI job rebuilds the
+  snapshot from Wikidata and opens a PR for the maintainer to merge.
+  Users who relied on the runtime refresh path should upgrade their
+  release habit instead: `pip install --upgrade special-days`.
+- **Removed:** `special_days._cache` module and the per-user cache at
+  `~/.cache/special-days/`. No replacement; the snapshot inside the
+  wheel is the single source of truth at runtime.
+- **Snapshot file format** changed from `{"YYYY": "YYYY-MM-DD"}` to
+  `{"YYYY": ["YYYY-MM-DD", ...]}`. Lists per year preserve series
+  with multiple installments in one calendar year (the 2nd and 3rd
+  Academy Awards both in 1930).
+- `SuperBowl(allow_network=...)` constructor argument removed.
+  Existing code that passed it will raise `TypeError`.
+
+### Added
+
+- New `dates(year) -> list[date]` function on every event module,
+  alongside the existing `date(year) -> date` (which now returns the
+  first date in years that have more than one).
+- The 3rd Academy Awards (November 5, 1930) is now present in the
+  shipped snapshot. Previously dropped because it collided with the
+  2nd ceremony's calendar year under `{year: date}` semantics.
+- `Oscars(label_with_edition=True)` now emits correct labels for the
+  early ceremonies (1929–1934): the 2nd and 3rd Awards are
+  distinguished within 1930; the 4th, 5th, and 6th line up correctly
+  with 1931, 1932, and 1934.
+- `datetime.datetime` keys are normalized to `datetime.date` in all
+  dict-like lookups (`__contains__`, `__getitem__`, `get`,
+  `get_list`), matching `holidays.HolidayBase`. Previously a
+  `datetime` would silently miss a matching `date`.
+- `year` arguments are type-checked: passing a `str`, `float`, `None`,
+  or `bool` raises `TypeError` immediately instead of silently
+  failing.
+- Roman numerals now use standard subtractive notation through 3999
+  (previously broke at edition 400, emitting `CCCC` instead of `CD`).
+  Out-of-range values raise `ValueError`.
+- `fetch_event_dates(qid)` (private API; used by snapshot scripts)
+  validates that `qid` matches the `Q[1-9]\d*` pattern before
+  interpolating into the SPARQL query.
+- New `AGENTS.md`, `CONTRIBUTING.md`, `MAINTENANCE.md`, and
+  `CITATION.cff` files documenting the maintenance workflow,
+  contribution conventions, and how LLM/coding agents should engage
+  with the codebase.
+- Developer guide moved from HTML to Markdown
+  (`docs/how_it_works.md`) and linked from the README.
+
+### Fixed
+
+- Oscars `_edition_label` no longer emits the wrong ordinal for the
+  4th (1931) and 5th (1932) ceremonies. Previously these came back as
+  "3rd" and "4th" because the naive `year - 1928` formula didn't
+  account for the early-Oscars calendar irregularities.
+- The shipped snapshot can no longer be silently overridden by a
+  stale or tampered per-user cache file (the cache no longer exists).
+- Concurrent `refresh()` calls can no longer truncate the cache file
+  via interleaved writes (the cache no longer exists).
+
+### Removed
+
+- `super_bowl.refresh()`, `oscars.refresh()`,
+  `LazyDateMap.refresh()`, and `_Event.refresh()`.
+- `WikidataUnavailable` is no longer raised from the public API. It
+  still exists in `special_days._wikidata` for snapshot-build scripts
+  and the live tests.
+- The `_cache` module.
+
+## [0.2.7] - 2026-05-XX
+
+See git log.

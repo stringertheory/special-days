@@ -1,7 +1,7 @@
 PYTHON ?= .venv/bin/python
 PIP    ?= .venv/bin/pip
 
-.PHONY: help venv install hooks lint test test-live \
+.PHONY: help venv install hooks lint test test-live type-check \
         snapshot-super-bowl snapshot-super-bowl-live \
         snapshot-oscars snapshot-oscars-live \
         snapshots snapshots-live \
@@ -14,12 +14,13 @@ help:
 	@echo "  install                    editable install with dev extras into .venv"
 	@echo "  hooks                      wire up pre-commit git hooks"
 	@echo "  lint                       run pre-commit (ruff lint + format) on all files"
+	@echo "  type-check                 run mypy on src/special_days"
 	@echo "  test                       run unit tests (mocked, fast)"
 	@echo "  test-live                  run unit tests + live Wikidata tests"
 	@echo "  snapshot-super-bowl        regenerate data/super_bowl.json from embedded list"
 	@echo "  snapshot-super-bowl-live   regenerate data/super_bowl.json from live Wikidata"
-	@echo "  snapshot-oscars            regenerate data/oscars.json from embedded list"
-	@echo "  snapshot-oscars-live       regenerate data/oscars.json from live Wikidata"
+	@echo "  snapshot-oscars            regenerate data/oscars.json from embedded list (errors if empty)"
+	@echo "  snapshot-oscars-live       regenerate data/oscars.json from live Wikidata + EMBEDDED overlay"
 	@echo "  snapshots                  regenerate every snapshot from embedded lists"
 	@echo "  snapshots-live             regenerate every snapshot from live Wikidata"
 	@echo "  publish-patch              bump patch (x.y.Z+1), commit, tag, push"
@@ -38,6 +39,9 @@ hooks:
 
 lint:
 	.venv/bin/pre-commit run --all-files
+
+type-check:
+	$(PYTHON) -m mypy src/special_days
 
 test:
 	$(PYTHON) -m unittest discover -s tests -v
@@ -73,8 +77,10 @@ _check_publish_ready:
 	@command -v uv >/dev/null || { echo "uv not found on PATH; install from https://docs.astral.sh/uv/"; exit 1; }
 	@[ "$$(git rev-parse --abbrev-ref HEAD)" = "main" ] || { echo "must be on main branch"; exit 1; }
 	@git diff --quiet && git diff --cached --quiet || { echo "working tree dirty; commit or stash first"; exit 1; }
+	@git fetch origin main --quiet
+	@[ "$$(git rev-parse HEAD)" = "$$(git rev-parse origin/main)" ] || { echo "local main is not at origin/main; pull or push first"; exit 1; }
 
-publish-patch publish-minor publish-major: _check_publish_ready test
+publish-patch publish-minor publish-major: _check_publish_ready test type-check
 	@kind="$(@:publish-%=%)" && \
 		new=$$(uv version --bump $$kind --short --frozen) && \
 		echo "Releasing v$$new..." && \

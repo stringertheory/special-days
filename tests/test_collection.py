@@ -1,11 +1,12 @@
 """Tests for LazyDateMap, union(), and SpecialDays."""
 
-from datetime import date
-from unittest import TestCase, mock
+from datetime import date, datetime
+from unittest import TestCase
 
 from special_days import (
     EVENT_REGISTRY,
     LazyDateMap,
+    Oscars,
     SpecialDays,
     SuperBowl,
     union,
@@ -24,6 +25,9 @@ class LazyDateMapTests(TestCase):
         self.assertIn(date(2025, 1, 1), self.m)
         self.assertIn(date(2025, 7, 4), self.m)
         self.assertNotIn(date(2025, 5, 1), self.m)
+
+    def test_contains_normalizes_datetime(self):
+        self.assertIn(datetime(2025, 1, 1), self.m)
 
     def test_getitem_returns_first_match(self):
         self.assertEqual(self.m[date(2025, 1, 1)], "New Year's")
@@ -89,41 +93,6 @@ class UnionFunctionTests(TestCase):
         self.assertIn(date(2025, 7, 4), m)
 
 
-class LazyDateMapRefreshTests(TestCase):
-    def test_refresh_calls_refresh_on_each_source_that_has_one(self):
-        a = mock.MagicMock()
-        b = mock.MagicMock()
-        m = LazyDateMap(a, b)
-        m.refresh()
-        a.refresh.assert_called_once()
-        b.refresh.assert_called_once()
-
-    def test_refresh_skips_sources_without_a_refresh_method(self):
-        plain = {date(2025, 1, 1): "x"}  # no .refresh
-        b = mock.MagicMock()
-        m = LazyDateMap(plain, b)
-        m.refresh()  # must not raise
-        b.refresh.assert_called_once()
-
-    def test_refresh_propagates_errors_from_sources(self):
-        a = mock.MagicMock()
-        a.refresh.side_effect = RuntimeError("disabled")
-        b = mock.MagicMock()
-        m = LazyDateMap(a, b)
-        with self.assertRaises(RuntimeError):
-            m.refresh()
-        # b was not refreshed because a raised first
-        b.refresh.assert_not_called()
-
-
-class SpecialDaysRefreshTests(TestCase):
-    def test_special_days_inherits_refresh_from_lazy_date_map(self):
-        sb = mock.MagicMock(spec=SuperBowl)
-        sd = SpecialDays(events=[sb])
-        sd.refresh()
-        sb.refresh.assert_called_once()
-
-
 class LazyDateMapPreservesLazinessTests(TestCase):
     """Membership queries must not force eager population of event sources."""
 
@@ -132,7 +101,6 @@ class LazyDateMapPreservesLazinessTests(TestCase):
         m = LazyDateMap(sb)
         _ = date(2025, 2, 9) in m
         self.assertEqual(set(sb), {date(2025, 2, 9)})  # 2025 loaded
-        # Other years not yet loaded — iter(sb) shouldn't have any.
 
     def test_iteration_does_not_force_a_load(self):
         sb = SuperBowl()
@@ -143,7 +111,6 @@ class LazyDateMapPreservesLazinessTests(TestCase):
 class SpecialDaysTests(TestCase):
     def test_default_constructor_uses_full_registry(self):
         sd = SpecialDays()
-        # Every registered event should be an underlying source.
         self.assertEqual(len(sd._sources), len(EVENT_REGISTRY))
 
     def test_accepts_event_strings(self):
@@ -161,13 +128,9 @@ class SpecialDaysTests(TestCase):
         self.assertIsInstance(sd._sources[0], SuperBowl)
 
     def test_accepts_already_instantiated_events(self):
-        sb = SuperBowl(allow_network=False)
+        sb = SuperBowl()
         sd = SpecialDays(events=[sb])
         self.assertIs(sd._sources[0], sb)
-
-    def test_propagates_allow_network_to_resolved_events(self):
-        sd = SpecialDays(events=["super_bowl"], allow_network=False)
-        self.assertFalse(sd._sources[0]._allow_network)
 
     def test_lookups_flow_through_to_events(self):
         sd = SpecialDays(events=[SuperBowl])
@@ -175,10 +138,13 @@ class SpecialDaysTests(TestCase):
         self.assertEqual(sd[date(2025, 2, 9)], "Super Bowl")
         self.assertEqual(sd.get_list(date(2025, 2, 9)), ["Super Bowl"])
 
+    def test_get_list_across_multiple_events(self):
+        sd = SpecialDays()
+        self.assertEqual(sd.get_list(date(2025, 2, 9)), ["Super Bowl"])
+        self.assertEqual(sd.get_list(date(2025, 3, 2)), ["Academy Awards"])
+
     def test_mixed_inputs(self):
-        sd = SpecialDays(
-            events=["super_bowl", SuperBowl, SuperBowl(allow_network=False)]
-        )
+        sd = SpecialDays(events=["super_bowl", SuperBowl, SuperBowl()])
         self.assertEqual(len(sd._sources), 3)
         for src in sd._sources:
             self.assertIsInstance(src, SuperBowl)
@@ -191,32 +157,32 @@ class SpecialDaysHolidaysInteropTests(TestCase):
         # Simulate holidays.HolidayBase with a static dict.
         us_like = {date(2025, 7, 4): "Independence Day"}
 
-        # Patch the network so the SuperBowl class doesn't go online.
-        with mock.patch(
-            "special_days.super_bowl._fetch_from_wikidata"
-        ) as fetch:
-            fetch.return_value = {}
-            sd = SpecialDays(events=[SuperBowl])
-            combined = union(us_like, sd)
+        sd = SpecialDays(events=[SuperBowl, Oscars])
+        combined = union(us_like, sd)
 
-            EMOJI = {
-                "Independence Day": "🎆",
-                "Super Bowl": "🏈",
-            }
+        EMOJI = {
+            "Independence Day": "INDY",
+            "Super Bowl": "SB",
+            "Academy Awards": "OSC",
+        }
 
-            def get_special(d):
-                return [
-                    {"name": n, "emoji": EMOJI[n]}
-                    for n in combined.get_list(d)
-                    if n in EMOJI
-                ]
+        def get_special(d):
+            return [
+                {"name": n, "emoji": EMOJI[n]}
+                for n in combined.get_list(d)
+                if n in EMOJI
+            ]
 
-            self.assertEqual(
-                get_special(date(2025, 7, 4)),
-                [{"name": "Independence Day", "emoji": "🎆"}],
-            )
-            self.assertEqual(
-                get_special(date(2025, 2, 9)),
-                [{"name": "Super Bowl", "emoji": "🏈"}],
-            )
-            self.assertEqual(get_special(date(2025, 5, 1)), [])
+        self.assertEqual(
+            get_special(date(2025, 7, 4)),
+            [{"name": "Independence Day", "emoji": "INDY"}],
+        )
+        self.assertEqual(
+            get_special(date(2025, 2, 9)),
+            [{"name": "Super Bowl", "emoji": "SB"}],
+        )
+        self.assertEqual(
+            get_special(date(2025, 3, 2)),
+            [{"name": "Academy Awards", "emoji": "OSC"}],
+        )
+        self.assertEqual(get_special(date(2025, 5, 1)), [])

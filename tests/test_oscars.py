@@ -1,10 +1,9 @@
 """Tests for the public oscars API."""
 
-from datetime import date
-from unittest import TestCase, mock
+from datetime import date, datetime
+from unittest import TestCase
 
 from special_days import oscars
-from special_days._wikidata import WikidataUnavailable
 
 
 class KnownDatesFromSnapshotTests(TestCase):
@@ -21,6 +20,26 @@ class KnownDatesFromSnapshotTests(TestCase):
     def test_returns_announced_future_ceremony(self):
         # 98th Academy Awards: March 15, 2026.
         self.assertEqual(oscars.date(2026), date(2026, 3, 15))
+
+
+class TwoCeremoniesInOneYearTests(TestCase):
+    """1930 had two ceremonies: the 2nd in April, the 3rd in November.
+
+    ``date(year)`` returns the earliest; ``dates(year)`` returns both.
+    """
+
+    def test_date_returns_earliest_in_year(self):
+        self.assertEqual(oscars.date(1930), date(1930, 4, 3))
+
+    def test_dates_returns_both(self):
+        self.assertEqual(
+            oscars.dates(1930),
+            [date(1930, 4, 3), date(1930, 11, 5)],
+        )
+
+    def test_is_oscars_night_recognizes_both(self):
+        self.assertTrue(oscars.is_oscars_night(date(1930, 4, 3)))
+        self.assertTrue(oscars.is_oscars_night(date(1930, 11, 5)))
 
 
 class IsOscarsNightTests(TestCase):
@@ -50,43 +69,13 @@ class AllKnownTests(TestCase):
 
 
 class UnknownYearTests(TestCase):
-    def test_raises_keyerror_when_year_unknown_and_no_network(self):
-        with self.assertRaises(KeyError):
-            oscars.date(2099, allow_network=False)
-
-    @mock.patch("special_days.oscars._fetch_from_wikidata")
-    def test_falls_back_to_network_when_year_missing(self, mock_fetch):
-        mock_fetch.return_value = {2099: date(2099, 3, 5)}
-        self.assertEqual(oscars.date(2099), date(2099, 3, 5))
-        mock_fetch.assert_called_once()
-
-    @mock.patch("special_days.oscars._fetch_from_wikidata")
-    def test_does_not_call_network_when_year_in_snapshot(self, mock_fetch):
-        oscars.date(2025)
-        mock_fetch.assert_not_called()
-
-    @mock.patch("special_days.oscars._fetch_from_wikidata")
-    def test_raises_when_network_also_lacks_year(self, mock_fetch):
-        mock_fetch.return_value = {}
+    def test_raises_keyerror_when_year_unknown(self):
         with self.assertRaises(KeyError):
             oscars.date(2099)
 
-
-class RefreshTests(TestCase):
-    @mock.patch("special_days.oscars._fetch_from_wikidata")
-    def test_refresh_updates_known_dates(self, mock_fetch):
-        mock_fetch.return_value = {
-            2099: date(2099, 3, 5),
-            2025: date(2025, 3, 2),
-        }
-        result = oscars.refresh()
-        self.assertEqual(result[2099], date(2099, 3, 5))
-
-    @mock.patch("special_days.oscars._fetch_from_wikidata")
-    def test_refresh_propagates_network_errors(self, mock_fetch):
-        mock_fetch.side_effect = WikidataUnavailable("network down")
-        with self.assertRaises(WikidataUnavailable):
-            oscars.refresh()
+    def test_rejects_non_int_year(self):
+        with self.assertRaises(TypeError):
+            oscars.date("2025")  # type: ignore[arg-type]
 
 
 class OscarsClassTests(TestCase):
@@ -96,6 +85,10 @@ class OscarsClassTests(TestCase):
         o = oscars.Oscars()
         self.assertIn(date(2025, 3, 2), o)
         self.assertNotIn(date(2025, 3, 3), o)
+
+    def test_datetime_membership_is_normalized(self):
+        o = oscars.Oscars()
+        self.assertIn(datetime(2025, 3, 2), o)
 
     def test_lookup_returns_constant_label_by_default(self):
         o = oscars.Oscars()
@@ -114,6 +107,11 @@ class OscarsClassTests(TestCase):
         o = oscars.Oscars(years=[2024, 2025])
         self.assertEqual(set(o), {date(2024, 3, 10), date(2025, 3, 2)})
 
+    def test_years_constructor_loads_all_dates_in_year(self):
+        # 1930 has two ceremonies; both should be in the dict.
+        o = oscars.Oscars(years=1930)
+        self.assertEqual(set(o), {date(1930, 4, 3), date(1930, 11, 5)})
+
     def test_label_with_edition_emits_ordinal(self):
         o = oscars.Oscars(label_with_edition=True, years=2025)
         self.assertEqual(o[date(2025, 3, 2)], "97th Academy Awards")
@@ -122,28 +120,28 @@ class OscarsClassTests(TestCase):
         o = oscars.Oscars(label_with_edition=True, years=1929)
         self.assertEqual(o[date(1929, 5, 16)], "1st Academy Awards")
 
+    def test_label_with_edition_distinguishes_two_in_1930(self):
+        """The 2nd (April) and 3rd (November) Academy Awards both
+        happened in 1930 and must get distinct edition labels."""
+        o = oscars.Oscars(label_with_edition=True, years=1930)
+        self.assertEqual(o[date(1930, 4, 3)], "2nd Academy Awards")
+        self.assertEqual(o[date(1930, 11, 5)], "3rd Academy Awards")
+
+    def test_label_with_edition_post_collision_resync(self):
+        """The 4th, 5th, and 6th ceremonies fall in 1931, 1932, 1934
+        respectively (no ceremony in 1933). A naive year-1928 offset
+        would mislabel 1931 as the 3rd and 1932 as the 4th."""
+        o = oscars.Oscars(label_with_edition=True)
+        self.assertEqual(o[date(1931, 11, 10)], "4th Academy Awards")
+        self.assertEqual(o[date(1932, 11, 18)], "5th Academy Awards")
+        self.assertEqual(o[date(1934, 3, 16)], "6th Academy Awards")
+
     def test_ordinal_corners(self):
         # Spot-check via the public label path for off-by-one bugs.
         o = oscars.Oscars(label_with_edition=True)
-        # 2nd Academy Awards: 1930 (year - 1928 = 2).
-        self.assertEqual(o[date(1930, 4, 3)], "2nd Academy Awards")
-        # 3rd is not in our snapshot due to two-in-1930 issue; skip.
         # 21st (year 1949) -> "21st" not "21nd"
         self.assertEqual(o[date(1949, 3, 24)], "21st Academy Awards")
         # 22nd (1950) -> "22nd"
         self.assertEqual(o[date(1950, 3, 23)], "22nd Academy Awards")
         # 23rd (1951) -> "23rd"
         self.assertEqual(o[date(1951, 3, 29)], "23rd Academy Awards")
-
-    @mock.patch("special_days.oscars._fetch_from_wikidata")
-    def test_allow_network_false_skips_fetch(self, mock_fetch):
-        o = oscars.Oscars(allow_network=False)
-        self.assertNotIn(date(2099, 3, 5), o)
-        mock_fetch.assert_not_called()
-
-    @mock.patch("special_days.oscars._fetch_from_wikidata")
-    def test_refresh_raises_when_network_disabled(self, mock_fetch):
-        o = oscars.Oscars(allow_network=False, years=2025)
-        with self.assertRaises(RuntimeError):
-            o.refresh()
-        mock_fetch.assert_not_called()

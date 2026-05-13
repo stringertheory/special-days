@@ -1,16 +1,22 @@
-"""Read-only union view over date-keyed dict-likes.
+"""Read-only lazy union view over date-keyed dict-likes.
 
 Used to compose multiple event objects (and/or third-party objects like
-``holidays.HolidayBase`` instances) into a single lazy lookup. None of
-the sources are materialized: ``in``/``[]``/``.get``/``.get_list``
-queries are forwarded to each source in turn, so per-year laziness on
-either side is preserved.
+``holidays.HolidayBase`` instances) into a single lookup. None of the
+sources are materialized: ``in``/``[]``/``.get``/``.get_list`` queries
+are forwarded to each source in turn, so per-year laziness on either
+side is preserved.
 """
 
 from __future__ import annotations
 
 from collections.abc import Iterator, Mapping
-from datetime import date
+from datetime import date, datetime
+
+
+def _normalize_date(key: object) -> object:
+    if isinstance(key, datetime):
+        return key.date()
+    return key
 
 
 class LazyDateMap:
@@ -20,18 +26,21 @@ class LazyDateMap:
         self._sources: tuple[Mapping[date, str], ...] = sources
 
     def __contains__(self, key: object) -> bool:
+        key = _normalize_date(key)
         return any(key in s for s in self._sources)
 
     def __getitem__(self, key: date) -> str:
+        norm = _normalize_date(key)
         for s in self._sources:
-            if key in s:
-                return s[key]
+            if norm in s:
+                return s[norm]  # type: ignore[index]
         raise KeyError(key)
 
     def get(self, key: date, default: str | None = None) -> str | None:
+        norm = _normalize_date(key)
         for s in self._sources:
-            if key in s:
-                return s[key]
+            if norm in s:
+                return s[norm]  # type: ignore[index]
         return default
 
     def get_list(self, key: date) -> list[str]:
@@ -40,12 +49,13 @@ class LazyDateMap:
         ``get_list`` if it has one (so ``holidays``'s semicolon-joined
         values get split correctly), otherwise falls back to its value.
         """
+        norm = _normalize_date(key)
         out: list[str] = []
         for s in self._sources:
             if hasattr(s, "get_list"):
-                out.extend(s.get_list(key))
-            elif key in s:
-                out.append(s[key])
+                out.extend(s.get_list(norm))
+            elif norm in s:
+                out.append(s[norm])  # type: ignore[index]
         return out
 
     def __iter__(self) -> Iterator[date]:
@@ -58,21 +68,6 @@ class LazyDateMap:
 
     def __len__(self) -> int:
         return sum(1 for _ in self)
-
-    def refresh(self) -> None:
-        """Refresh every source that supports it.
-
-        Sources without a ``refresh`` method are silently skipped (e.g.
-        plain dicts, ``holidays.HolidayBase`` instances). Errors from any
-        source — including ``_Event.refresh()``'s ``RuntimeError`` under
-        ``allow_network=False`` — propagate; later sources are not
-        refreshed in that case. If you want partial-failure behavior,
-        loop over the underlying sources yourself.
-        """
-        for s in self._sources:
-            refresh = getattr(s, "refresh", None)
-            if callable(refresh):
-                refresh()
 
 
 def union(*sources: Mapping[date, str]) -> LazyDateMap:

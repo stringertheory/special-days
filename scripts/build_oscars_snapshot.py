@@ -2,16 +2,19 @@
 
 Two modes:
 
-  python scripts/build_oscars_snapshot.py            # use embedded list
+  python scripts/build_oscars_snapshot.py            # use EMBEDDED only
   python scripts/build_oscars_snapshot.py --live     # fetch Wikidata,
-                                                     # then overlay EMBEDDED
+                                                     # then merge EMBEDDED
 
-For Oscars, Wikidata is the primary source. EMBEDDED is a sparse
-override layer: hand-curated entries that either correct Wikidata or
-plug gaps where Wikidata hasn't caught up yet. When run with --live,
-the script fetches Wikidata, then `update()`s the EMBEDDED entries on
-top -- so a single source of truth (Wikidata) drives most of the data
-but we can paper over lag without waiting for upstream.
+For Oscars, Wikidata is the primary source. ``EMBEDDED`` is a sparse
+overlay: hand-curated entries that either correct Wikidata or plug
+gaps where Wikidata hasn't caught up yet. When run with ``--live``,
+the script fetches from Wikidata, then merges ``EMBEDDED`` on top --
+extending the per-year date lists rather than replacing them.
+
+Snapshot format on disk:
+
+    {"YYYY": ["YYYY-MM-DD", ...], ...}
 """
 
 from __future__ import annotations
@@ -25,10 +28,21 @@ from pathlib import Path
 # Sparse overrides applied on top of live Wikidata data when --live is
 # used. Add an entry here when Wikidata is missing or wrong; remove it
 # once Wikidata catches up. Empty in the steady state.
-EMBEDDED: dict[int, date] = {}
+EMBEDDED: dict[int, list[date]] = {}
 
 
-def main():
+def _merge(
+    base: dict[int, list[date]], overlay: dict[int, list[date]]
+) -> dict[int, list[date]]:
+    """Union dates per year; sort + dedupe."""
+    out = {y: list(ds) for y, ds in base.items()}
+    for y, ds in overlay.items():
+        merged = set(out.get(y, ())) | set(ds)
+        out[y] = sorted(merged)
+    return out
+
+
+def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
         "--live",
@@ -48,18 +62,23 @@ def main():
         sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
         from special_days._wikidata import fetch_oscars_dates
 
-        data = fetch_oscars_dates()
-        data.update(EMBEDDED)
+        data = _merge(fetch_oscars_dates(), EMBEDDED)
     elif EMBEDDED:
         data = EMBEDDED
     else:
         parser.error("EMBEDDED is empty; pass --live to fetch from Wikidata.")
+        return  # unreachable, satisfies type checker
 
-    payload = {str(y): d.isoformat() for y, d in sorted(data.items())}
+    payload = {
+        str(y): [d.isoformat() for d in sorted(ds)]
+        for y, ds in sorted(data.items())
+    }
     Path(args.out).write_text(
-        json.dumps(payload, indent=2, sort_keys=True), encoding="utf-8"
+        json.dumps(payload, indent=2, sort_keys=True) + "\n",
+        encoding="utf-8",
     )
-    print(f"wrote {len(payload)} dates to {args.out}")
+    total = sum(len(ds) for ds in payload.values())
+    print(f"wrote {total} dates across {len(payload)} years to {args.out}")
 
 
 if __name__ == "__main__":

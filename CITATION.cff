@@ -1,0 +1,25 @@
+cff-version: 1.2.0
+title: special-days
+message: >-
+  If you use this software, please cite it using the metadata below.
+type: software
+authors:
+  - family-names: Stringer
+    given-names: Mike
+    email: mike.stringer.internet@gmail.com
+repository-code: "https://github.com/stringertheory/special-days"
+url: "https://pypi.org/project/special-days/"
+abstract: >-
+  Python package for looking up dates of special recurring events
+  (Super Bowl, Academy Awards, ...). Drop-in compatible with the
+  holidays package. Data sourced from Wikidata; offline-only at
+  runtime.
+keywords:
+  - python
+  - holidays
+  - wikidata
+  - super-bowl
+  - oscars
+  - academy-awards
+  - calendar
+license: MIT

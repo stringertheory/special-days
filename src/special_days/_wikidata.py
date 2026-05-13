@@ -1,15 +1,21 @@
 """Minimal Wikidata SPARQL client (stdlib only).
 
+This module is **not** on the runtime lookup path. It exists for the
+snapshot-build scripts and the opt-in live tests. Users should never
+need to call into it; the wheel ships everything Wikidata told us last
+build.
+
 The SPARQL Query Results JSON Format we parse is a W3C standard
 (https://www.w3.org/TR/sparql11-results-json/), so the response shape is
 stable. The query itself is what's most likely to need updating over the
 years if Wikidata's modeling of an event series changes; see
-``EVENT_DATES_QUERY`` below.
+:data:`EVENT_DATES_QUERY` below.
 """
 
 from __future__ import annotations
 
 import json
+import re
 from datetime import date, datetime
 from typing import Any
 from urllib.error import HTTPError, URLError
@@ -71,6 +77,9 @@ SELECT ?item ?itemLabel ?date WHERE {{
 ORDER BY ?date
 """
 
+# Wikidata QIDs are "Q" followed by a positive integer.
+_QID_RE = re.compile(r"^Q[1-9]\d*$")
+
 
 class WikidataUnavailable(Exception):
     """Raised when we cannot get a usable response from Wikidata."""
@@ -86,26 +95,28 @@ def sparql_query(query: str, timeout: float = 15) -> dict[str, Any]:
     request.add_header("Accept", "application/sparql-results+json")
     request.add_header("User-Agent", _USER_AGENT)
     try:
-        with urlopen(request, timeout=timeout) as response:
+        # The URL is built from a hardcoded https endpoint plus a
+        # urlencoded SPARQL query; no caller-controlled scheme is reachable.
+        with urlopen(request, timeout=timeout) as response:  # noqa: S310
             body = response.read()
     except (HTTPError, URLError, TimeoutError) as exc:
         raise WikidataUnavailable(str(exc)) from exc
     try:
-        return json.loads(body)
+        return json.loads(body)  # type: ignore[no-any-return]
     except (ValueError, UnicodeDecodeError) as exc:
         raise WikidataUnavailable(
             f"non-JSON response from Wikidata: {exc}"
         ) from exc
 
 
-def parse_event_results(results: dict[str, Any]) -> dict[int, date]:
-    """Turn a SPARQL JSON response into a {year: date} mapping.
+def parse_event_results(results: dict[str, Any]) -> dict[int, list[date]]:
+    """Turn a SPARQL JSON response into a ``{year: [date, ...]}`` mapping.
 
-    If two events of the same series fall in the same calendar year
-    (unusual but possible), the earlier date wins so the result is
-    deterministic and stable across calls.
+    Multiple dates in the same calendar year are preserved (e.g. the
+    2nd and 3rd Academy Awards both in 1930). Within a year, dates are
+    sorted ascending and de-duplicated.
     """
-    out: dict[int, date] = {}
+    out: dict[int, set[date]] = {}
     for binding in results.get("results", {}).get("bindings", []):
         raw = binding.get("date", {}).get("value")
         if not raw:
@@ -114,16 +125,17 @@ def parse_event_results(results: dict[str, Any]) -> dict[int, date]:
             d = _parse_xsd_date(raw)
         except ValueError:
             continue
-        out.setdefault(d.year, d)
-    return out
+        out.setdefault(d.year, set()).add(d)
+    return {y: sorted(ds) for y, ds in out.items()}
 
 
 def _parse_xsd_date(value: str) -> date:
-    """Parse a Wikidata xsd:dateTime literal into a `date`.
+    """Parse a Wikidata xsd:dateTime literal into a ``date``.
 
-    Wikidata emits values like '2025-02-09T00:00:00Z'. Some historical
-    items have negative years or unusual precision; we don't need those
-    here so we only handle the common case and let the rest fail.
+    Wikidata emits values like '2025-02-09T00:00:00Z'. Historical items
+    can have negative years or unusual precision; the SPARQL query
+    filters those out, so we only handle the common modern case here
+    and let anything weird raise ValueError.
     """
     # Strip a trailing Z so fromisoformat (which doesn't accept Z until
     # Python 3.11) can handle older interpreters.
@@ -132,22 +144,26 @@ def _parse_xsd_date(value: str) -> date:
     return datetime.fromisoformat(value).date()
 
 
-def fetch_event_dates(series_qid: str) -> dict[int, date]:
+def fetch_event_dates(series_qid: str) -> dict[int, list[date]]:
     """Fetch all known event dates for the given Wikidata series Q-ID.
 
-    Returns a {year: date} dict. Raises WikidataUnavailable on failure.
+    Returns ``{year: [date, ...]}``. Raises ``ValueError`` if
+    ``series_qid`` isn't a syntactically valid QID and
+    ``WikidataUnavailable`` on network/parse failure.
     """
+    if not _QID_RE.match(series_qid):
+        raise ValueError(f"invalid Wikidata QID: {series_qid!r}")
     query = EVENT_DATES_QUERY.format(qid=series_qid)
     return parse_event_results(sparql_query(query))
 
 
-def fetch_super_bowl_dates() -> dict[int, date]:
+def fetch_super_bowl_dates() -> dict[int, list[date]]:
     """Convenience wrapper: all known Super Bowl dates from Wikidata."""
     # Q32096 is the Wikidata item for "Super Bowl".
     return fetch_event_dates("Q32096")
 
 
-def fetch_oscars_dates() -> dict[int, date]:
+def fetch_oscars_dates() -> dict[int, list[date]]:
     """Convenience wrapper: all known Academy Awards ceremony dates."""
     # Q19020 is the Wikidata item for "Academy Awards".
     return fetch_event_dates("Q19020")

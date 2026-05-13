@@ -22,9 +22,9 @@ Two ways to use the package:
       # ... or mix with the holidays package
       combined = union(holidays.US(), sd)
 
-Data is sourced from Wikidata; a snapshot ships with the package so
-lookups work offline, and a network refresh keeps the data from going
-stale over the years.
+Data ships inside the wheel; lookups are local and require no network.
+Snapshots are refreshed in CI from Wikidata; ``pip install --upgrade``
+pulls fresh data.
 """
 
 from collections.abc import Iterable
@@ -36,12 +36,12 @@ try:
 except PackageNotFoundError:  # not installed (raw source-tree usage)
     __version__ = "0.0.0+unknown"
 
-from ._event import _Event
+from ._event import _EventDict
 from ._lazy import LazyDateMap, union
 from .oscars import Oscars
 from .super_bowl import SuperBowl
 
-EVENT_REGISTRY: dict[str, type[_Event]] = {
+EVENT_REGISTRY: dict[str, type[_EventDict]] = {
     "super_bowl": SuperBowl,
     "oscars": Oscars,
 }
@@ -58,16 +58,14 @@ class SpecialDays(LazyDateMap):
 
     def __init__(
         self,
-        events: Iterable[str | type[_Event] | _Event] | None = None,
-        allow_network: bool = True,
+        events: Iterable[str | type[_EventDict] | _EventDict] | None = None,
     ) -> None:
         if events is None:
             events = list(EVENT_REGISTRY.values())
-        self._allow_network: bool = allow_network
         instances = [self._resolve(e) for e in events]
         super().__init__(*instances)
 
-    def _resolve(self, e: str | type[_Event] | _Event) -> _Event:
+    def _resolve(self, e: str | type[_EventDict] | _EventDict) -> _EventDict:
         if isinstance(e, str):
             try:
                 cls = EVENT_REGISTRY[e]
@@ -76,9 +74,9 @@ class SpecialDays(LazyDateMap):
                 raise ValueError(
                     f"Unknown event {e!r}. Known: {known}"
                 ) from None
-            return cls(allow_network=self._allow_network)
+            return cls()
         if isinstance(e, type):
-            return e(allow_network=self._allow_network)
+            return e()
         return e
 
 

@@ -1,4 +1,8 @@
-"""Tests for the low-level Wikidata SPARQL client."""
+"""Tests for the low-level Wikidata SPARQL client.
+
+This module is not on the runtime lookup path; it's used by the
+snapshot-build scripts and the opt-in live tests.
+"""
 
 import json
 from datetime import date
@@ -90,11 +94,7 @@ class SparqlQueryErrorTests(TestCase):
 
 
 class ParseEventResultsTests(TestCase):
-    """Test parsing of SPARQL JSON results into {year: date} mapping.
-
-    Response shape follows the W3C SPARQL 1.1 Query Results JSON format
-    (https://www.w3.org/TR/sparql11-results-json/).
-    """
+    """Test parsing of SPARQL JSON results into ``{year: [date, ...]}``."""
 
     def _binding(self, iso_date, label="Event"):
         return {
@@ -114,7 +114,7 @@ class ParseEventResultsTests(TestCase):
             },
         }
 
-    def test_parses_year_to_date(self):
+    def test_parses_year_to_dates(self):
         results = {
             "head": {"vars": ["item", "itemLabel", "date"]},
             "results": {
@@ -125,8 +125,8 @@ class ParseEventResultsTests(TestCase):
             },
         }
         parsed = parse_event_results(results)
-        self.assertEqual(parsed[1967], date(1967, 1, 15))
-        self.assertEqual(parsed[2025], date(2025, 2, 9))
+        self.assertEqual(parsed[1967], [date(1967, 1, 15)])
+        self.assertEqual(parsed[2025], [date(2025, 2, 9)])
 
     def test_handles_empty_results(self):
         results = {
@@ -146,35 +146,57 @@ class ParseEventResultsTests(TestCase):
             },
         }
         parsed = parse_event_results(results)
-        self.assertEqual(parsed, {2025: date(2025, 2, 9)})
+        self.assertEqual(parsed, {2025: [date(2025, 2, 9)]})
 
-    def test_when_two_events_in_same_year_keeps_first(self):
-        """Two events of the same kind in one calendar year is unusual
-        but possible (e.g. World Series rescheduled). First wins so the
-        result is deterministic; callers can use raw results if needed.
-        """
+    def test_two_events_in_same_year_preserved_and_sorted(self):
+        """Two ceremonies in one calendar year (e.g. Academy Awards in
+        1930) must both make it through, in chronological order."""
         results = {
             "head": {"vars": ["item", "itemLabel", "date"]},
             "results": {
                 "bindings": [
-                    self._binding("2025-01-05T00:00:00Z", "A"),
-                    self._binding("2025-12-20T00:00:00Z", "B"),
+                    self._binding("1930-11-05T00:00:00Z", "3rd"),
+                    self._binding("1930-04-03T00:00:00Z", "2nd"),
                 ]
             },
         }
         parsed = parse_event_results(results)
-        self.assertEqual(parsed, {2025: date(2025, 1, 5)})
+        self.assertEqual(parsed[1930], [date(1930, 4, 3), date(1930, 11, 5)])
+
+    def test_duplicate_dates_in_year_are_deduped(self):
+        results = {
+            "head": {"vars": ["item", "itemLabel", "date"]},
+            "results": {
+                "bindings": [
+                    self._binding("2025-02-09T00:00:00Z"),
+                    self._binding("2025-02-09T00:00:00Z"),
+                ]
+            },
+        }
+        self.assertEqual(
+            parse_event_results(results), {2025: [date(2025, 2, 9)]}
+        )
+
+
+class QidValidationTests(TestCase):
+    def test_rejects_bad_qids(self):
+        for bad in ["", "Q", "Q0", "Q01", "Q1a", "P31", "garbage", "Q-1"]:
+            with self.assertRaises(ValueError, msg=bad):
+                fetch_event_dates(bad)
+
+    def test_accepts_valid_qids(self):
+        body = json.dumps(
+            {"head": {"vars": []}, "results": {"bindings": []}}
+        ).encode()
+        opener = _mock_urlopen_returning(body)
+        with mock.patch("special_days._wikidata.urlopen", opener):
+            # Just shouldn't raise.
+            fetch_event_dates("Q32096")
+            fetch_event_dates("Q19020")
 
 
 class QueryFiltersDatePrecisionTests(TestCase):
-    """The SPARQL query must filter to day-precision dates only.
-
-    Wikidata stores P585 ("point in time") values with a precision
-    qualifier: 11 = day, 10 = month, 9 = year. When a future event has
-    only been announced down to the month, Wikidata returns the date as
-    YYYY-MM-01 with precision 10. Without filtering, those placeholders
-    silently leak into our results as bogus Feb-1 (etc.) dates.
-    """
+    """The SPARQL query must filter to day-precision dates only."""
 
     def test_query_constrains_time_precision(self):
         body = json.dumps(
@@ -184,18 +206,10 @@ class QueryFiltersDatePrecisionTests(TestCase):
         with mock.patch("special_days._wikidata.urlopen", opener):
             fetch_event_dates("Q32096")
         url = opener.call_args[0][0].full_url
-        # Both the precision predicate and the day-precision threshold
-        # (11) must appear in the query. Asserting substrings keeps the
-        # test resilient to formatting / variable-name changes.
         self.assertIn("timePrecision", url)
         self.assertIn("11", url)
 
     def test_query_excludes_deprecated_rank(self):
-        """Wikidata's deprecated-rank mechanism is the canonical way
-        for editors to mark a known-wrong value while keeping it in
-        history. Consumers are expected to honor that, and doing so
-        generalizes per-event workarounds away.
-        """
         body = json.dumps(
             {"head": {"vars": []}, "results": {"bindings": []}}
         ).encode()
