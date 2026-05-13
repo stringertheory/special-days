@@ -191,6 +191,28 @@ class Event:
             d = d.date()
         return d in self.dates(d.year)
 
+    # --- opt-in: live refresh from Wikidata -------------------------------
+
+    def fetch_from_wikidata(self) -> dict[int, list[datetime.date]]:
+        """Fetch the current ``{year: [date, ...]}`` from Wikidata.
+
+        Does not modify this Event's cached snapshot; the caller is
+        free to use the returned data directly or assign it to
+        ``self._snapshot`` to make subsequent in-process lookups see
+        the fresh data. Raises
+        :class:`~special_days.wikidata.WikidataUnavailable` on
+        network/parse failure.
+
+        Runtime is offline by default; calling this method is the
+        explicit opt-in. See ``docs/how_it_works.md`` for the
+        runtime-refresh recipe.
+        """
+        # Lazy import: keeps `import special_days` from pulling in
+        # urllib unless the user actually asks for a fetch.
+        from .wikidata import fetch_event_dates
+
+        return fetch_event_dates(self.wikidata_qid)
+
     # --- date-keyed (holidays-compatible) class API -----------------------
 
     def cls(self) -> type[EventDict]:

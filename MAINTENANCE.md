@@ -22,7 +22,7 @@ should look at on what cadence.
    merging.
 2. **Triage red weekly live-test runs.** If they go red, Wikidata
    probably reshaped its data. Update `EVENT_DATES_QUERY` in
-   `_wikidata.py`, cut a patch release.
+   `wikidata.py`, cut a patch release.
 3. **Cut a release after merging.** `make publish-patch` from a
    clean `main`. The release workflow handles the rest.
 4. **Approve dependabot PRs** after CI passes.

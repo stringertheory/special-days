@@ -6,13 +6,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- `Event.fetch_from_wikidata()` — opt-in method that returns the
+  current ``{year: [date, ...]}`` from Wikidata. Default lookups
+  remain offline; this is the explicit way for a long-running
+  process to keep up with newly-announced dates without
+  redeploying. See ``docs/how_it_works.md`` for the recipe.
+- `special_days.wikidata` is now a public module (was `_wikidata`).
+  Tests, scripts, and the new opt-in refresh path all import from
+  it; the leading underscore was lying about whether external code
+  could touch it.
+
 ### Changed (breaking)
 
 - **Internal modules renamed without leading underscores.**
   `special_days._event` -> `special_days.event`,
   `special_days._lazy` -> `special_days.lazy`,
+  `special_days._wikidata` -> `special_days.wikidata`,
+  `special_days._numerals` -> `special_days.numerals`,
   `_EventDict` -> `EventDict`. The public re-exports from
-  `special_days` are unchanged.
+  `special_days` are unchanged. Leading underscores remain only on
+  identifiers that are genuinely implementation detail (helpers
+  with single call sites, cache-state attributes, etc.).
 - **`EventDict` is now eagerly populated.** Constructing
   `SuperBowl()` reads the full snapshot up front (microseconds for
   ~60-100 dates per event). `years=[...]` is now a *filter* — the
@@ -91,9 +107,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 - `super_bowl.refresh()`, `oscars.refresh()`,
   `LazyDateMap.refresh()`, and `_Event.refresh()`.
-- `WikidataUnavailable` is no longer raised from the public API. It
-  still exists in `special_days._wikidata` for snapshot-build scripts
-  and the live tests.
+- `WikidataUnavailable` is no longer raised from the package's
+  default lookup path. It still lives in `special_days.wikidata`
+  for the snapshot-build scripts, the live tests, and the new
+  opt-in `Event.fetch_from_wikidata()` method.
 - The `_cache` module.
 
 ## [0.2.7] - 2026-05-XX

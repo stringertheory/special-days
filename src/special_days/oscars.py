@@ -19,8 +19,8 @@ from __future__ import annotations
 
 import datetime
 
-from ._numerals import ordinal
 from .event import Event
+from .numerals import ordinal
 
 # Most ceremony numbers follow ``year - 1928`` -- the 1st Academy
 # Awards was held May 1929, year - 1928 = 1. The exceptions are the

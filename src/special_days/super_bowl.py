@@ -14,8 +14,8 @@ from __future__ import annotations
 
 import datetime
 
-from ._numerals import roman
 from .event import Event
+from .numerals import roman
 
 # Super Bowl I was played in 1967. The edition number for a given year
 # is ``year - 1966``.

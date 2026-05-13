@@ -145,7 +145,7 @@ class RomanNumeralEdgeCaseTests(TestCase):
     """``roman`` must use standard subtractive notation through 3999."""
 
     def test_subtractive_notation_used_above_399(self):
-        from special_days._numerals import roman
+        from special_days.numerals import roman
 
         self.assertEqual(roman(400), "CD")
         self.assertEqual(roman(500), "D")

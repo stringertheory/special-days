@@ -46,7 +46,7 @@ src/special_days/
 ├── oscars.py            # functional API + Oscars class
 ├── event.py             # generic Event + EventDict base class
 ├── lazy.py              # LazyDateMap + union (composition)
-├── _wikidata.py         # SPARQL client (used by scripts/live tests only)
+├── wikidata.py          # SPARQL client (snapshot scripts + opt-in refresh)
 ├── py.typed             # PEP 561 marker for downstream type checkers
 └── data/
     ├── super_bowl.json  # shipped snapshot
@@ -65,11 +65,12 @@ tests/
 └── test_live_wikidata.py  # opt-in, hits real Wikidata
 ```
 
-Public modules are `super_bowl` and `oscars` (and future siblings).
-Anything prefixed with `_` is internal: callers shouldn't depend on its
-signature, and tests are free to monkeypatch it. `_wikidata.py` is in
-the package only so the snapshot-build scripts can import it; it is
-not used by any runtime lookup.
+Public modules are `super_bowl`, `oscars`, `event`, `lazy`, and
+`wikidata` (the SPARQL client). Anything prefixed with `_` is
+internal: callers shouldn't depend on its signature, and tests are
+free to monkeypatch it. `wikidata.py` is publicly importable so the
+opt-in runtime-refresh recipe (below) works without reaching for a
+private name; it is *not* called by any default-path lookup.
 
 ## Public API surface
 
@@ -213,7 +214,7 @@ a sparse list of corrections / gap-fills. See
 
 ## The Wikidata SPARQL query
 
-The query template lives in `_wikidata.py` as `EVENT_DATES_QUERY`:
+The query template lives in `wikidata.py` as `EVENT_DATES_QUERY`:
 
 ```sparql
 SELECT ?item ?itemLabel ?date WHERE {
@@ -290,17 +291,54 @@ dates in the same calendar year both make it through (no
 
 ## Network policy
 
-Runtime: **none**. Every public function and every dict-like lookup
-answers from the shipped snapshot, on disk in the wheel. No
-filesystem cache, no `~/.cache/special-days/`, no `XDG_CACHE_HOME`,
-no proxy variables read. A user-installed package making outbound
-HTTPS requests is a footgun in firewalled or sandboxed environments;
-we don't.
+Runtime: **none by default**. Every public function and every
+dict-like lookup answers from the shipped snapshot, on disk in the
+wheel. No filesystem cache, no `~/.cache/special-days/`, no
+`XDG_CACHE_HOME`, no proxy variables read. A user-installed package
+making outbound HTTPS requests is a footgun in firewalled or
+sandboxed environments; we don't, unless you ask.
 
 Snapshot-build scripts: only ever invoked manually
 (`make snapshots-live`) or in CI (the scheduled refresh workflow).
 These do hit Wikidata. They live in `scripts/` and are not on the
 user's import path under any normal installation.
+
+### Opt-in: refreshing from Wikidata at runtime
+
+Some users want a long-running process to pick up newly-announced
+dates without redeploying. The package's Wikidata-fetch machinery is
+publicly importable for exactly this case — but it's never invoked
+unless the caller explicitly asks.
+
+The minimal recipe just uses fresh data directly:
+
+```python
+from special_days import super_bowl
+
+fresh = super_bowl.EVENT.fetch_from_wikidata()
+# fresh is dict[int, list[date]] -- {2030: [date(2030, 2, 3)], ...}
+# Use it however you want; the package's own lookups are untouched.
+```
+
+Or, to make subsequent package lookups see the fresh data
+(in-process, this Python interpreter only):
+
+```python
+super_bowl.EVENT._snapshot = super_bowl.EVENT.fetch_from_wikidata()
+super_bowl.date(2030)   # now reflects the freshly-fetched data
+```
+
+`Event._snapshot` is the cached snapshot dict; replacing it is the
+documented escape hatch for "I want my long-running process to keep
+up with Wikidata between releases."
+
+Failure modes:
+[`WikidataUnavailable`](../src/special_days/wikidata.py) on
+network/HTTP/parse errors. The caller decides how to react (keep the
+old snapshot, log, retry, etc.). Be polite to the endpoint: a
+schedule of "every few hours" is plenty; Wikimedia's
+[User-Agent policy](https://meta.wikimedia.org/wiki/User-Agent_policy)
+expects identification and reasonable rate.
 
 ## Maintenance: regenerating the snapshot
 
@@ -318,7 +356,7 @@ maintainer is involved only in three scenarios:
    differences, investigate before committing.
 3. **The live tests start failing.** Wikidata has probably reshaped
    its data model for that event. The first place to look is
-   `EVENT_DATES_QUERY` in `_wikidata.py`. After updating, cut a new
+   `EVENT_DATES_QUERY` in `wikidata.py`. After updating, cut a new
    release.
 
 ## Extending: adding a new event type
@@ -357,7 +395,7 @@ To add, say, the World Series:
    `scripts/build_world_series_snapshot.py` modelled on the existing
    scripts. It calls
    `fetch_event_dates(world_series.EVENT.wikidata_qid)`; no edit to
-   `_wikidata.py` is needed because the SPARQL template is already
+   `wikidata.py` is needed because the SPARQL template is already
    QID-parameterized. Run it; commit `data/world_series.json`. The
    `package-data` glob (`data/*.json`) already picks it up.
 4. Register the class in `__init__.py`: add

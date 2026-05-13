@@ -9,7 +9,7 @@ from datetime import date
 from unittest import TestCase, mock
 from urllib.error import HTTPError, URLError
 
-from special_days._wikidata import (
+from special_days.wikidata import (
     SPARQL_ENDPOINT,
     WikidataUnavailable,
     fetch_event_dates,
@@ -33,7 +33,7 @@ class SparqlQueryRequestTests(TestCase):
             {"head": {"vars": []}, "results": {"bindings": []}}
         ).encode()
         opener = _mock_urlopen_returning(body)
-        with mock.patch("special_days._wikidata.urlopen", opener):
+        with mock.patch("special_days.wikidata.urlopen", opener):
             sparql_query("SELECT * WHERE { ?s ?p ?o } LIMIT 1")
         request = opener.call_args[0][0]
         self.assertTrue(request.full_url.startswith(SPARQL_ENDPOINT))
@@ -43,7 +43,7 @@ class SparqlQueryRequestTests(TestCase):
             {"head": {"vars": []}, "results": {"bindings": []}}
         ).encode()
         opener = _mock_urlopen_returning(body)
-        with mock.patch("special_days._wikidata.urlopen", opener):
+        with mock.patch("special_days.wikidata.urlopen", opener):
             sparql_query("ASK { ?s ?p ?o }")
         request = opener.call_args[0][0]
         ua = request.get_header("User-agent") or ""
@@ -54,7 +54,7 @@ class SparqlQueryRequestTests(TestCase):
             {"head": {"vars": []}, "results": {"bindings": []}}
         ).encode()
         opener = _mock_urlopen_returning(body)
-        with mock.patch("special_days._wikidata.urlopen", opener):
+        with mock.patch("special_days.wikidata.urlopen", opener):
             sparql_query("ASK { ?s ?p ?o }")
         request = opener.call_args[0][0]
         accept = request.get_header("Accept") or ""
@@ -66,7 +66,7 @@ class SparqlQueryRequestTests(TestCase):
             "results": {"bindings": [{"x": {"value": "hi"}}]},
         }
         opener = _mock_urlopen_returning(json.dumps(payload).encode())
-        with mock.patch("special_days._wikidata.urlopen", opener):
+        with mock.patch("special_days.wikidata.urlopen", opener):
             result = sparql_query("ASK { ?s ?p ?o }")
         self.assertEqual(result, payload)
 
@@ -74,13 +74,13 @@ class SparqlQueryRequestTests(TestCase):
 class SparqlQueryErrorTests(TestCase):
     def test_http_error_wrapped_in_wikidata_unavailable(self):
         err = HTTPError("http://x", 503, "Service Unavailable", {}, None)
-        with mock.patch("special_days._wikidata.urlopen", side_effect=err):
+        with mock.patch("special_days.wikidata.urlopen", side_effect=err):
             with self.assertRaises(WikidataUnavailable):
                 sparql_query("ASK { ?s ?p ?o }")
 
     def test_url_error_wrapped_in_wikidata_unavailable(self):
         with mock.patch(
-            "special_days._wikidata.urlopen",
+            "special_days.wikidata.urlopen",
             side_effect=URLError("offline"),
         ):
             with self.assertRaises(WikidataUnavailable):
@@ -88,7 +88,7 @@ class SparqlQueryErrorTests(TestCase):
 
     def test_invalid_json_wrapped_in_wikidata_unavailable(self):
         opener = _mock_urlopen_returning(b"<html>oops</html>")
-        with mock.patch("special_days._wikidata.urlopen", opener):
+        with mock.patch("special_days.wikidata.urlopen", opener):
             with self.assertRaises(WikidataUnavailable):
                 sparql_query("ASK { ?s ?p ?o }")
 
@@ -189,7 +189,7 @@ class QidValidationTests(TestCase):
             {"head": {"vars": []}, "results": {"bindings": []}}
         ).encode()
         opener = _mock_urlopen_returning(body)
-        with mock.patch("special_days._wikidata.urlopen", opener):
+        with mock.patch("special_days.wikidata.urlopen", opener):
             # Just shouldn't raise.
             fetch_event_dates("Q32096")
             fetch_event_dates("Q19020")
@@ -203,7 +203,7 @@ class QueryFiltersDatePrecisionTests(TestCase):
             {"head": {"vars": []}, "results": {"bindings": []}}
         ).encode()
         opener = _mock_urlopen_returning(body)
-        with mock.patch("special_days._wikidata.urlopen", opener):
+        with mock.patch("special_days.wikidata.urlopen", opener):
             fetch_event_dates("Q32096")
         url = opener.call_args[0][0].full_url
         self.assertIn("timePrecision", url)
@@ -214,8 +214,45 @@ class QueryFiltersDatePrecisionTests(TestCase):
             {"head": {"vars": []}, "results": {"bindings": []}}
         ).encode()
         opener = _mock_urlopen_returning(body)
-        with mock.patch("special_days._wikidata.urlopen", opener):
+        with mock.patch("special_days.wikidata.urlopen", opener):
             fetch_event_dates("Q32096")
         url = opener.call_args[0][0].full_url
         self.assertIn("rank", url)
         self.assertIn("DeprecatedRank", url)
+
+
+class EventFetchFromWikidataTests(TestCase):
+    """``Event.fetch_from_wikidata`` is the opt-in runtime-refresh path."""
+
+    def test_passes_event_qid_through_to_fetch_event_dates(self):
+        from special_days import super_bowl
+
+        body = json.dumps(
+            {
+                "head": {"vars": ["item", "itemLabel", "date"]},
+                "results": {
+                    "bindings": [
+                        {"date": {"value": "2025-02-09T00:00:00Z"}},
+                    ]
+                },
+            }
+        ).encode()
+        opener = _mock_urlopen_returning(body)
+        with mock.patch("special_days.wikidata.urlopen", opener):
+            result = super_bowl.EVENT.fetch_from_wikidata()
+        url = opener.call_args[0][0].full_url
+        self.assertIn(super_bowl.EVENT.wikidata_qid, url)
+        self.assertEqual(result, {2025: [date(2025, 2, 9)]})
+
+    def test_does_not_mutate_event_state(self):
+        from special_days import super_bowl
+
+        before = super_bowl.EVENT.all_known()
+        body = json.dumps(
+            {"head": {"vars": []}, "results": {"bindings": []}}
+        ).encode()
+        opener = _mock_urlopen_returning(body)
+        with mock.patch("special_days.wikidata.urlopen", opener):
+            super_bowl.EVENT.fetch_from_wikidata()
+        # Fetch returns data; it does not silently replace the snapshot.
+        self.assertEqual(super_bowl.EVENT.all_known(), before)

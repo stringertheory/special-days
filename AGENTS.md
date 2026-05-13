@@ -12,14 +12,17 @@ about *how to operate the codebase as an agent*, not *what it does*.
 * **Zero runtime dependencies** is a hard rule. The only dependency
   ever added to `[project] dependencies` would be a major design
   pivot. The `[dev]` extras can grow more freely.
-* The runtime is **offline-only.** No network calls, no filesystem
-  cache. The shipped snapshot in `src/special_days/data/` is the
-  single source of truth at runtime. If you find yourself adding
-  `urllib` or `requests` to a module that's imported at runtime,
-  stop.
-* `_wikidata.py` exists only for the snapshot-build scripts and the
-  live tests. Do not import it from `super_bowl.py`, `oscars.py`, or
-  any other public module.
+* The runtime **default path is offline.** Every public function and
+  every dict-like lookup answers from the shipped snapshot in
+  `src/special_days/data/`. The only way the package issues an HTTPS
+  request at runtime is `Event.fetch_from_wikidata()` -- an explicit
+  caller opt-in. If you're adding a network call anywhere on the
+  default path, stop.
+* `wikidata.py` is publicly importable (for both the
+  snapshot-build scripts and the opt-in runtime-refresh recipe). It
+  is *not* called from `super_bowl.py` or `oscars.py`; the only
+  internal reference is the lazy import inside
+  `Event.fetch_from_wikidata`.
 * Snapshot JSON files (`src/special_days/data/*.json`) are
   generated. Never edit by hand. Regenerate via `make snapshots` (use
   embedded list) or `make snapshots-live` (fetch Wikidata).
@@ -60,7 +63,7 @@ about *how to operate the codebase as an agent*, not *what it does*.
 ## Verification
 
 Always run `make lint test` before declaring a change done. If
-touching anything in `_wikidata.py` or a SPARQL string, additionally
+touching anything in `wikidata.py` or a SPARQL string, additionally
 run `SPECIAL_DAYS_LIVE_TESTS=1 make test-live` (network required).
 
 ## Style

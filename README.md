@@ -9,9 +9,10 @@ World Series Game 7, NCAA championship. Drop-in compatible with the
 `date in calendar` logic you already use for public holidays answers
 "is today Super Bowl Sunday?" too.
 
-Zero runtime dependencies. All lookups are local; no network calls
-are made at runtime. Data is refreshed in CI from Wikidata; `pip
-install --upgrade` pulls fresh dates.
+Zero runtime dependencies. Lookups are local by default; data is
+refreshed in CI from Wikidata and `pip install --upgrade` pulls the
+new dates. A long-running process can opt into a Wikidata refresh
+mid-run — see [the dev guide](docs/how_it_works.md#opt-in-refreshing-from-wikidata-at-runtime).
 
 > **Status: Beta.** Currently ships Super Bowl + Academy Awards
 > (Oscars). The API is settling; behavior-changing edits will land on

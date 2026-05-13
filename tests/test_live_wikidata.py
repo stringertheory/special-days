@@ -15,7 +15,7 @@ import unittest
 from datetime import date
 
 from special_days import oscars, super_bowl
-from special_days._wikidata import fetch_event_dates
+from special_days.wikidata import fetch_event_dates
 
 LIVE = os.environ.get("SPECIAL_DAYS_LIVE_TESTS") == "1"
 
