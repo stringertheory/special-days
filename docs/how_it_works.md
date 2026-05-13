@@ -352,7 +352,8 @@ maintainer is involved only in three scenarios:
 
 ## Extending: adding a new event type
 
-To add, say, the World Series:
+To add, say, the Kentucky Derby (one race per year, ~150 years of
+data, stable Wikidata representation — a typical example):
 
 1. Find the Wikidata Q-ID for the series (verify on wikidata.org and
    that the SPARQL query, run in the Wikidata web GUI, returns dates
@@ -360,52 +361,75 @@ To add, say, the World Series:
 2. Add a thin per-event module. It has two halves: an `Event(...)`
    configuration object, and a block that binds the module's public
    names to that event's methods. The bindings are the module's
-   public-API specification; the predicate name (`is_world_series_game`)
-   and class name (`WorldSeries`) are editorial and need to be spelled
-   per event:
+   public-API specification; the predicate name
+   (`is_kentucky_derby_day`) and class name (`KentuckyDerby`) are
+   editorial and need to be spelled per event:
 
    ```python
-   # src/special_days/world_series.py
+   # src/special_days/kentucky_derby.py
    import datetime
    from .event import Event
 
    def _edition_label(d: datetime.date) -> str:
-       return f"World Series {d.year}"
+       return f"Kentucky Derby {d.year}"
 
    EVENT = Event(
-       name="World Series",
-       wikidata_qid="Q265538",        # verify on wikidata.org
-       snapshot_resource=("special_days.data", "world_series.json"),
+       name="Kentucky Derby",
+       wikidata_qid="Q336390",       # verify on wikidata.org
+       snapshot_resource=("special_days.data", "kentucky_derby.json"),
        edition_label=_edition_label,
    )
 
    date = EVENT.first_date
    dates = EVENT.dates
    all_known = EVENT.all_known
-   is_world_series_game = EVENT.contains_date
-   WorldSeries = EVENT.cls()
+   is_kentucky_derby_day = EVENT.contains_date
+   KentuckyDerby = EVENT.cls()
    ```
 
-3. Register the event with the snapshot builder. Add one row to
-   `OVERRIDES` in `scripts/build_snapshot.py`:
+3. Register the event with the snapshot builder. In
+   `scripts/build_snapshot.py`, import the new module and add one row
+   to `EVENTS`:
 
    ```python
-   OVERRIDES = {
-       "super_bowl": {},
-       "oscars": {},
-       "world_series": {},   # new
+   from special_days import kentucky_derby, oscars, super_bowl
+
+   EVENTS = {
+       "super_bowl": super_bowl.EVENT,
+       "oscars": oscars.EVENT,
+       "kentucky_derby": kentucky_derby.EVENT,    # new
    }
    ```
 
-   Then `make snapshot-world-series` (or add it to the `snapshots`
-   aggregate target in the Makefile) writes
-   `src/special_days/data/world_series.json`. The
-   `package-data` glob (`data/*.json`) already picks it up.
-4. Register the class in `__init__.py`: add
-   `"world_series": WorldSeries` to `EVENT_REGISTRY` and re-export
-   `WorldSeries`.
-5. Add tests mirroring the existing event tests, including a live
+   `OVERRIDES` only needs an entry if Wikidata is currently wrong
+   about a specific date and you want to ship a correction; events
+   with no corrections don't need a row there.
+
+4. Add a Makefile target (mirror the existing ones) and add it to
+   the `snapshots` aggregate. Run `make snapshot-kentucky-derby` to
+   write `src/special_days/data/kentucky_derby.json`; the
+   `package-data` glob (`data/*.json`) already picks the file up.
+
+5. Register the class in `__init__.py`: add
+   `"kentucky_derby": KentuckyDerby` to `EVENT_REGISTRY` and
+   re-export `KentuckyDerby`.
+
+6. Add tests mirroring the existing event tests, including a live
    test that verifies the SPARQL query against the real endpoint.
+
+### Multi-date-per-year series
+
+The `{year: list[date]}` shape handles series with several
+installments in a calendar year — the Oscars implementation already
+exercises this (1930 hosted both the 2nd ceremony in April and the
+3rd in November). `date(year)` returns the earliest; `dates(year)`
+returns the full list. Best-of-N series (e.g. World Series Game 1
+through Game 7) would represent each game as a separate date for the
+same year. Beyond the data shape, the only thing per-event author
+should think about is the predicate semantics: is
+`is_world_series_game(d)` "this is *one of* the series' game days"
+or "this is *the* World Series date"? The former is straightforward
+(`EVENT.contains_date`); the latter would need a custom predicate.
 
 ## Testing model
 

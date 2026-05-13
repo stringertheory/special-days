@@ -33,12 +33,11 @@ EVENTS: dict[str, Event] = {
     "oscars": oscars.EVENT,
 }
 
-# Sparse {event_name: {year: [date, ...]}} overrides merged on top of
-# the Wikidata fetch. Empty values mean "trust Wikidata."
-OVERRIDES: dict[str, dict[int, list[date]]] = {
-    "super_bowl": {},
-    "oscars": {},
-}
+# Sparse per-event corrections merged on top of the Wikidata fetch.
+# Populate when Wikidata is wrong (vandalism, lag, transcription
+# error) and you want to ship a correction; remove once Wikidata
+# catches up. Events without corrections don't need a row here.
+OVERRIDES: dict[str, dict[int, list[date]]] = {}
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 
@@ -67,7 +66,7 @@ def main() -> None:
 
     data = merge(
         fetch_event_dates(EVENTS[args.event].wikidata_qid),
-        OVERRIDES[args.event],
+        OVERRIDES.get(args.event, {}),
     )
 
     out_path = Path(
