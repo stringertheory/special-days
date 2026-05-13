@@ -83,11 +83,11 @@ construction time.
 from datetime import date
 from special_days import SuperBowl
 
-sb = SuperBowl()                         # all 61 known dates
+sb = SuperBowl()                         # every known Super Bowl date
 date(2025, 2, 9) in sb                   # True
 sb[date(2025, 2, 9)]                     # 'Super Bowl'
 sb.get_list(date(2025, 2, 9))            # ['Super Bowl']
-len(sb)                                  # 61
+len(sb)                                  # one entry per game, grows each year
 
 # Filter to a subset of years.
 SuperBowl(years=[1967, 2024, 2025])

@@ -44,8 +44,8 @@ Two parallel APIs over the same data:
 * **Date-keyed class API** (``holidays``-compatible). ``SuperBowl()``,
   ``Oscars()``, ``SpecialDays()`` are ``dict[date, str]`` subclasses
   eagerly populated from the shipped snapshot at construction.
-  ``len(SuperBowl())`` is 61, iteration yields every known date, and
-  ``datetime`` keys are normalized to ``date`` on lookup.
+  ``len`` and iteration reflect the full snapshot; ``datetime`` keys
+  are normalized to ``date`` on lookup.
 
 Public names exported from this package:
 

@@ -109,11 +109,11 @@ at construction time.
 from datetime import date
 from special_days import SuperBowl
 
-sb = SuperBowl()                       # all 61 dates loaded
+sb = SuperBowl()                       # every known date, loaded
 date(2025, 2, 9) in sb                 # True
 sb[date(2025, 2, 9)]                   # 'Super Bowl'
 sb.get_list(date(2025, 2, 9))          # ['Super Bowl']
-len(sb)                                # 61
+len(sb)                                # one entry per game, grows each year
 ```
 
 Pass `years=[...]` (or a single `int`) to construct a *filtered* view
