@@ -6,13 +6,6 @@ on:
   pull_request:
     branches: [main]
 
-# Opt JavaScript-based actions (actions/checkout, actions/setup-python)
-# into Node.js 24 now, ahead of the June 2026 forced migration.
-# Silences the per-job Node 20 deprecation annotation. Remove if/when
-# Node 24 becomes the runner default.
-env:
-  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
-
 jobs:
   test:
     name: test (Python ${{ matrix.python-version }}, ${{ matrix.os }})
@@ -32,8 +25,8 @@ jobs:
           - python-version: "3.10"
             os: windows-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
         with:
           python-version: ${{ matrix.python-version }}
           # Only 3.15 is a prerelease right now; opt in just for that
@@ -46,8 +39,8 @@ jobs:
   lint:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
         with:
           python-version: "3.12"
           cache: pip
