@@ -18,7 +18,7 @@ from datetime import date
 
 
 class _Event(dict):
-    """Lazy date-keyed dict of one calendar-disrupting event series."""
+    """Lazy date-keyed dict of one special-event series."""
 
     name: str = ""  # subclasses override
 

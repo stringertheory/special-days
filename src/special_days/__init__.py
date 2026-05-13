@@ -1,4 +1,4 @@
-"""special-days: lookup dates for events that disrupt normal attendance.
+"""special-days: lookup dates for special events.
 
 Two ways to use the package:
 

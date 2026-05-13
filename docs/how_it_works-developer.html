@@ -87,9 +87,9 @@ or adding a new event type.</p>
 </nav>
 
 <h2 id="scope">What this package is (and isn't)</h2>
-<p>Given a year, return the date on which a calendar-disrupting event
-occurred (or will occur). Currently ships the NFL Super Bowl and the
-Academy Awards (Oscars). The package is intentionally tiny:</p>
+<p>Given a year, return the date on which a special event occurred
+(or will occur). Currently ships the NFL Super Bowl and the Academy
+Awards (Oscars). The package is intentionally tiny:</p>
 <ul>
   <li><strong>Zero runtime dependencies.</strong> Only the Python standard
     library. <code>urllib</code> handles HTTP; <code>json</code> handles
@@ -101,8 +101,8 @@ Academy Awards (Oscars). The package is intentionally tiny:</p>
     year transparently refreshes from Wikidata and caches the result.</li>
 </ul>
 <p>It is <em>not</em> a general calendar/holidays library. The scope is
-deliberately narrow: events that cause unusual venue attendance patterns,
-where the official date is announced once and rarely changes.</p>
+deliberately narrow: a curated set of named, recurring events whose
+official date is announced once and rarely changes.</p>
 
 <h2 id="layout">Module layout</h2>
 <pre><code>src/special_days/
