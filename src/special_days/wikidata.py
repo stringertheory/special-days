@@ -92,10 +92,13 @@ class WikidataUnavailable(Exception):
     """Raised when a usable response cannot be obtained from Wikidata."""
 
 
-def sparql_query(query: str, timeout: float = 15) -> dict[str, Any]:
+def sparql_query(query: str, timeout: float = 45) -> dict[str, Any]:
     """Run a SPARQL query against Wikidata and return parsed JSON.
 
     Raises WikidataUnavailable on network / HTTP / JSON errors.
+
+    Timeout is generous: cold-cache queries can take ~15s, so a tighter
+    limit makes live tests and refreshes flaky.
     """
     url = SPARQL_ENDPOINT + "?" + urlencode({"query": query})
     request = Request(url)
