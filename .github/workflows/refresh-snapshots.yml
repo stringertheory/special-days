@@ -54,3 +54,21 @@ jobs:
           labels: |
             automated
             snapshot-refresh
+      # Reaching here means `make snapshots` fetched Wikidata successfully
+      # and (if the data changed) the live tests passed — i.e. the snapshot
+      # is verified current as of today. Update the README's "last refreshed"
+      # badge via a Gist (shields.io endpoint), so it advances every day even
+      # when nothing changed, and goes stale if this job starts failing. This
+      # step is intentionally NOT gated on `changed`.
+      - name: Compute today's date
+        id: date
+        run: echo "today=$(date -u +'%Y-%m-%d')" >> "$GITHUB_OUTPUT"
+      - name: Update "last refreshed" badge
+        uses: schneegans/dynamic-badges-action@v1.8.0
+        with:
+          auth: ${{ secrets.GIST_BADGE_TOKEN }}
+          gistID: 5964c94bc8e1e539a3c47b309ca64d9f
+          filename: special-days-wikidata-refresh.json
+          label: wikidata refreshed
+          message: ${{ steps.date.outputs.today }}
+          color: blue

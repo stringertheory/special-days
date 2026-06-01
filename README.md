@@ -2,6 +2,7 @@
 
 [![tests](https://github.com/stringertheory/special-days/actions/workflows/ci.yml/badge.svg)](https://github.com/stringertheory/special-days/actions/workflows/ci.yml)
 [![PyPI](https://img.shields.io/pypi/v/special-days.svg)](https://pypi.org/project/special-days/)
+[![wikidata refreshed](https://img.shields.io/endpoint?url=https://gist.githubusercontent.com/stringertheory/5964c94bc8e1e539a3c47b309ca64d9f/raw/special-days-wikidata-refresh.json)](https://github.com/stringertheory/special-days/actions/workflows/refresh-snapshots.yml)
 
 Lookup dates for special events, so far the Super Bowl Sunday and Oscars night. Compatible with the
 [`holidays`](https://pypi.org/project/holidays/) package, so the same
