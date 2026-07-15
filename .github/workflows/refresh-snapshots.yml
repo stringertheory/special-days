@@ -64,7 +64,7 @@ jobs:
         id: date
         run: echo "today=$(date -u +'%Y-%m-%d')" >> "$GITHUB_OUTPUT"
       - name: Update "last refreshed" badge
-        uses: schneegans/dynamic-badges-action@v1.8.0
+        uses: schneegans/dynamic-badges-action@v1.9.0
         with:
           auth: ${{ secrets.GIST_BADGE_TOKEN }}
           gistID: 5964c94bc8e1e539a3c47b309ca64d9f
