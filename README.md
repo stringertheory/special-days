@@ -4,19 +4,20 @@
 [![PyPI](https://img.shields.io/pypi/v/special-days.svg)](https://pypi.org/project/special-days/)
 [![wikidata refreshed](https://img.shields.io/endpoint?url=https://gist.githubusercontent.com/stringertheory/5964c94bc8e1e539a3c47b309ca64d9f/raw/special-days-wikidata-refresh.json)](https://github.com/stringertheory/special-days/actions/workflows/refresh-snapshots.yml)
 
-Lookup dates for special events, so far the Super Bowl Sunday and Oscars night. Compatible with the
-[`holidays`](https://pypi.org/project/holidays/) package, so the same
-`date in calendar` logic you can use for public holidays answers
-"is today Super Bowl Sunday?" too.
+Lookup dates for special events, so far the Super Bowl Sunday and
+Oscars night. Compatible with the
+[`holidays`](https://pypi.org/project/holidays/) package, so you can
+use the same `date in calendar` logic that's available for public
+holidays for "is today Super Bowl Sunday?" too.
 
-Zero runtime dependencies. Data is
-checked daily against Wikidata and, once manually reviewed and published, `pip install --upgrade` will pull the
-refreshed known dates.
+Data is checked daily against Wikidata and, once manually reviewed and
+published, `pip install --upgrade` will pull the refreshed known
+dates.
 
-> **Status: Alpha.** Currently ships Super Bowl + Academy Awards
-> (Oscars). The API probably won't change, but I might until
-> the maintenance process has run for a while and I've
-> learned if things need to change.
+> **Status: Alpha.** Currently included Super Bowl + Academy Awards
+> (Oscars). The API probably won't change, but it might until the
+> maintenance process has run for a while and I've learned if things
+> need to change.
 
 ## Install
 
@@ -26,13 +27,13 @@ pip install special-days
 
 ## Quickstart
 
-Answer "is this day special?" in the `holidays`-compatible way.
+Answer "is this day special?" in a `holidays`-compatible way.
 
 ```python
 from datetime import date
 from special_days import SpecialDays
 
-sd = SpecialDays()                       # all events the package ships
+sd = SpecialDays()                       # all events
 sd.get_list(date(2025, 2, 9))            # ['Super Bowl']
 sd.get_list(date(2025, 3, 2))            # ['Academy Awards']
 sd.get_list(date(2025, 5, 1))            # []
@@ -69,7 +70,7 @@ A more full version is in [`examples/by_date.py`](examples/by_date.py).
 
 ## Two ways to use it
 
-### Date-keyed (drop-in for `holidays`)
+### Date-keyed (just like `holidays`)
 
 A `dict`-like subclass populated from the included data snapshot.
 
@@ -89,7 +90,7 @@ SuperBowl(years=range(2020, 2030))
 ```
 
 `datetime.datetime` values are normalized to `date` automatically, so
-mixing the two in a lookup just works.
+you can mix the two in a lookup.
 
 ### Year-keyed (planner-style)
 
@@ -165,7 +166,7 @@ days = [d for d in (start + timedelta(days=i)
 # [date(2025, 2, 9), date(2025, 3, 2)]
 ```
 
-### Just one event, not all of them
+### Just one event
 
 `SpecialDays(events=[...])` accepts string names, classes, or
 already-built instances:
