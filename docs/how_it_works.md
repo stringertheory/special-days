@@ -210,11 +210,13 @@ The query template lives in `wikidata.py` as `EVENT_DATES_QUERY`:
 
 ```sparql
 SELECT ?item ?itemLabel ?date WHERE {
-  { ?item wdt:P31  wd:{qid} . }    # instance of
+  { ?item wdt:P31   wd:{qid} . }   # instance of
   UNION
-  { ?item wdt:P361 wd:{qid} . }    # part of
+  { ?item wdt:P361  wd:{qid} . }   # part of
   UNION
-  { ?item wdt:P179 wd:{qid} . }    # part of the series
+  { ?item wdt:P179  wd:{qid} . }   # part of the series
+  UNION
+  { ?item wdt:P3450 wd:{qid} . }   # sports season of league or competition
   ?item p:P585 ?statement .
   ?statement psv:P585 ?dateValue .
   ?dateValue wikibase:timeValue ?date .
@@ -227,10 +229,10 @@ SELECT ?item ?itemLabel ?date WHERE {
 ORDER BY ?date
 ```
 
-The `UNION` over three predicates is intentional: Wikidata
+The `UNION` over four predicates is intentional: Wikidata
 contributors use different relationship properties to attach an event
 instance to its series, and conventions drift over time. Matching all
-three gives the query the best chance of surviving a re-modeling.
+four gives the query the best chance of surviving a re-modeling.
 
 The statement-level path (`p:P585` → `psv:P585`) exists to read the
 `wikibase:timePrecision` qualifier. Wikidata stores P585 ("point in

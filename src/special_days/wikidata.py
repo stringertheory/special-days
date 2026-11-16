@@ -40,13 +40,16 @@ USER_AGENT = (
 )
 
 # Match any item that is related to a series Q-ID through one of the
-# three predicates most commonly used for "this is one installment of
-# that series" in Wikidata:
-#   P31  - instance of
-#   P361 - part of
-#   P179 - part of the series
+# predicates most commonly used for "this is one installment of that
+# series" in Wikidata:
+#   P31   - instance of
+#   P361  - part of
+#   P179  - part of the series
+#   P3450 - sports season of league or competition (used alongside
+#           P31 "recurring sporting event edition"; some Super Bowl
+#           items were remodeled this way in November 2026)
 #
-# The query UNIONs all three because conventions differ across event
+# The query UNIONs all of them because conventions differ across event
 # types and can drift over time. If a future Wikidata reshape breaks
 # this query, update it here and cut a new release.
 #
@@ -72,6 +75,8 @@ SELECT ?item ?itemLabel ?date WHERE {{
   {{ ?item wdt:P361 wd:{qid} . }}
   UNION
   {{ ?item wdt:P179 wd:{qid} . }}
+  UNION
+  {{ ?item wdt:P3450 wd:{qid} . }}
   ?item p:P585 ?statement .
   ?statement psv:P585 ?dateValue .
   ?dateValue wikibase:timeValue ?date .
