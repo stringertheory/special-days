@@ -44,6 +44,7 @@ jobs:
         # links to /tmp/pr-body.md; peter-evans picks it up via body-path.
         run: python scripts/annotate_refresh.py > /tmp/pr-body.md
       - name: Open PR
+        id: cpr
         if: steps.diff.outputs.changed == 'true'
         uses: peter-evans/create-pull-request@v8
         with:
@@ -54,15 +55,29 @@ jobs:
           labels: |
             automated
             snapshot-refresh
-      # Reaching here means `make snapshots` fetched Wikidata successfully
-      # and (if the data changed) the live tests passed — i.e. the snapshot
-      # is verified current as of today. Update the README's "last refreshed"
-      # badge via a Gist (shields.io endpoint), so it advances every day even
-      # when nothing changed, and goes stale if this job starts failing. This
-      # step is intentionally NOT gated on `changed`.
-      - name: Compute today's date
-        id: date
-        run: echo "today=$(date -u +'%Y-%m-%d')" >> "$GITHUB_OUTPUT"
+      # Reaching here means `make snapshots` fetched Wikidata successfully.
+      # The badge reports whether the shipped data on main matches
+      # Wikidata: blue with today's date when there is no diff, orange
+      # with the PR's open date while a refresh PR awaits review (the
+      # data on main is behind until it is merged). It goes stale if this
+      # job starts failing. createdAt survives the daily force-pushes to
+      # the PR branch, so the date is when review was first needed.
+      - name: Compute badge
+        id: badge
+        env:
+          GH_TOKEN: ${{ github.token }}
+          CHANGED: ${{ steps.diff.outputs.changed }}
+          PR_NUMBER: ${{ steps.cpr.outputs.pull-request-number }}
+        run: |
+          if [ "$CHANGED" = "true" ]; then
+            since=$(gh pr view "$PR_NUMBER" --json createdAt \
+              --jq '.createdAt[:10]')
+            echo "message=review pending since $since" >> "$GITHUB_OUTPUT"
+            echo "color=orange" >> "$GITHUB_OUTPUT"
+          else
+            echo "message=$(date -u +'%Y-%m-%d')" >> "$GITHUB_OUTPUT"
+            echo "color=blue" >> "$GITHUB_OUTPUT"
+          fi
       - name: Update "last refreshed" badge
         uses: schneegans/dynamic-badges-action@v1.9.0
         with:
@@ -70,5 +85,5 @@ jobs:
           gistID: 5964c94bc8e1e539a3c47b309ca64d9f
           filename: special-days-wikidata-refresh.json
           label: wikidata refreshed
-          message: ${{ steps.date.outputs.today }}
-          color: blue
+          message: ${{ steps.badge.outputs.message }}
+          color: ${{ steps.badge.outputs.color }}
